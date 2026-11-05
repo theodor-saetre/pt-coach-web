@@ -923,31 +923,50 @@ function oppdaterLoggVisning() {
     okt.øvelser.forEach((ex, ei) => {
       const navn = ex.navn || ex.name || 'Øvelse ' + (ei+1);
       const antallSett = parseInt(ex.sett) || 3;
+      const målReps = ex.reps || ex.tid || '';
+      const exId = 'ex_' + ei;
       if (!loggData[navn]) {
         loggData[navn] = Array.from({length: antallSett}, (_,i) => ({sett: i+1, kg:'', reps:''}));
       }
+
       const card = document.createElement('div');
-      card.className = 'card section-gap';
+      card.className = 'card';
       card.style.marginBottom = '10px';
 
-      let rows = loggData[navn].map((s, si) =>
-        `<tr>
-          <td class="set-num">S${s.sett}</td>
-          <td><input class="set-input" type="number" placeholder="kg" value="${s.kg}" oninput="saveSet('${navn}',${si},'kg',this.value)"></td>
-          <td><input class="set-input" type="number" placeholder="reps" value="${s.reps}" oninput="saveSet('${navn}',${si},'reps',this.value)"></td>
-        </tr>`
-      ).join('');
+      function byggTabell() {
+        return loggData[navn].map((s, si) => {
+          const ferdig = s.kg && s.reps;
+          return `<tr id="${exId}_row_${si}" style="${ferdig ? 'background:var(--success-bg)' : ''}">
+            <td class="set-num" style="color:${ferdig ? 'var(--success)' : ''}">S${s.sett}</td>
+            <td><input class="set-input" type="number" placeholder="kg" value="${s.kg}"
+              oninput="saveSet('${navn}',${si},'kg',this.value,'${exId}')" inputmode="decimal"></td>
+            <td><input class="set-input" type="number" placeholder="${målReps || 'reps'}" value="${s.reps}"
+              oninput="saveSet('${navn}',${si},'reps',this.value,'${exId}')" inputmode="numeric"></td>
+            <td style="padding-right:12px">
+              <button onclick="slettSett('${navn}',${si},'${exId}')"
+                style="border:none;background:none;color:var(--fg-muted);font-size:16px;cursor:pointer;padding:4px">×</button>
+            </td>
+          </tr>`;
+        }).join('');
+      }
 
       card.innerHTML = `
         <div class="card-header">
-          <div class="card-title">${navn}</div>
-          <span class="tag tag-grey">${antallSett} sett</span>
+          <div>
+            <div class="card-title">${navn}</div>
+            ${målReps ? `<div style="font-size:11px;color:var(--fg-muted);margin-top:2px">Mål: ${antallSett} × ${målReps}</div>` : ''}
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="leggTilSett('${navn}','${exId}')">+ Sett</button>
         </div>
         <table class="set-table">
-          <thead><tr><th>Sett</th><th>Vekt (kg)</th><th>Reps</th></tr></thead>
-          <tbody>${rows}</tbody>
+          <thead><tr><th>Sett</th><th>Vekt (kg)</th><th>Reps</th><th></th></tr></thead>
+          <tbody id="${exId}_tbody">${byggTabell()}</tbody>
         </table>
       `;
+      card.dataset.exNavn = navn;
+      card.dataset.exId = exId;
+      card.dataset.byggTabell = '';
+      card._byggTabell = byggTabell;
       container.appendChild(card);
     });
   }
@@ -971,8 +990,40 @@ function oppdaterLoggVisning() {
   }
 }
 
-function saveSet(navn, si, field, val) {
-  if (loggData[navn]) loggData[navn][si][field] = val;
+function oppdaterSettTabell(navn, exId) {
+  const card = [...document.getElementById('logg-okt-container').querySelectorAll('.card')]
+    .find(c => c.dataset.exNavn === navn);
+  if (card) {
+    document.getElementById(exId + '_tbody').innerHTML = card._byggTabell();
+  }
+}
+
+function saveSet(navn, si, field, val, exId) {
+  if (loggData[navn]) {
+    loggData[navn][si][field] = val;
+    // Grønn rad hvis begge felt er fylt
+    const s = loggData[navn][si];
+    const row = document.getElementById(exId + '_row_' + si);
+    if (row) {
+      const ferdig = s.kg && s.reps;
+      row.style.background = ferdig ? 'var(--success-bg)' : '';
+      row.querySelector('.set-num').style.color = ferdig ? 'var(--success)' : '';
+    }
+  }
+}
+
+function leggTilSett(navn, exId) {
+  if (!loggData[navn]) loggData[navn] = [];
+  const neste = loggData[navn].length + 1;
+  loggData[navn].push({sett: neste, kg: '', reps: ''});
+  oppdaterSettTabell(navn, exId);
+}
+
+function slettSett(navn, si, exId) {
+  if (!loggData[navn] || loggData[navn].length <= 1) return;
+  loggData[navn].splice(si, 1);
+  loggData[navn].forEach((s, i) => s.sett = i + 1);
+  oppdaterSettTabell(navn, exId);
 }
 
 function fullforOkt() {
