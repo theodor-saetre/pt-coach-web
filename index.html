@@ -907,9 +907,40 @@ hentPlan();
 oppdaterStatOkter();
 
 // ══════════════════════════════════════
-// LOGG
+// LOGG — PROGRESSIV OVERLOAD
 // ══════════════════════════════════════
 let loggData = {}; // { exNavn: [{sett:1, kg:'', reps:''},...] }
+
+function hentForrigeOkt(øvelseNavn) {
+  const logg = hentStyrkelog();
+  const entries = logg.filter(e => e.øvelse === øvelseNavn);
+  if (!entries.length) return null;
+  const datoer = [...new Set(entries.map(e => e.dato))].sort().reverse();
+  const sisteDato = datoer[0];
+  const siste = entries.filter(e => e.dato === sisteDato);
+  const snittReps = siste.reduce((s,e) => s + (e.reps||0), 0) / siste.length;
+  const maxKg = Math.max(...siste.map(e => e.kg||0));
+  return { dato: sisteDato, sett: siste, snittReps, maxKg };
+}
+
+function beregnForslag(forrige, målReps) {
+  if (!forrige) return null;
+  let minR = 6, maxR = 12;
+  if (målReps) {
+    const p = String(målReps).split('-');
+    minR = parseInt(p[0]) || 6;
+    maxR = parseInt(p[p.length-1]) || minR;
+  }
+  const { snittReps, maxKg } = forrige;
+  if (snittReps >= maxR) {
+    const ny = Math.round((maxKg + 2.5) * 4) / 4;
+    return { kg: ny, type: 'øk', tekst: `↑ Øk til ${ny} kg — nådde ${Math.round(snittReps)} reps!` };
+  } else if (snittReps < minR) {
+    return { kg: maxKg, type: 'hold', tekst: `Hold ${maxKg} kg — sikte på ${minR}+ reps` };
+  } else {
+    return { kg: maxKg, type: 'mer', tekst: `${maxKg} kg — ta ${Math.round(snittReps)+1}+ reps i dag` };
+  }
+}
 
 function oppdaterLoggVisning() {
   const okt = hentAktivOkt();
@@ -927,6 +958,14 @@ function oppdaterLoggVisning() {
       const exId = 'ex_' + ei;
       if (!loggData[navn]) {
         loggData[navn] = Array.from({length: antallSett}, (_,i) => ({sett: i+1, kg:'', reps:''}));
+      }
+
+      const forrige = hentForrigeOkt(navn);
+      const forslag = beregnForslag(forrige, målReps);
+      const startKg = forslag ? forslag.kg : '';
+
+      if (!loggData[navn]) {
+        loggData[navn] = Array.from({length: antallSett}, (_,i) => ({sett: i+1, kg: startKg, reps:''}));
       }
 
       const card = document.createElement('div');
@@ -950,14 +989,19 @@ function oppdaterLoggVisning() {
         }).join('');
       }
 
+      const forslagFarge = forslag?.type === 'øk' ? 'var(--success)' : forslag?.type === 'hold' ? 'var(--warn)' : 'var(--accent)';
+      const forslagBg = forslag?.type === 'øk' ? 'var(--success-bg)' : forslag?.type === 'hold' ? 'var(--warn-bg)' : 'var(--accent-soft)';
+
       card.innerHTML = `
         <div class="card-header">
-          <div>
+          <div style="flex:1;min-width:0">
             <div class="card-title">${navn}</div>
-            ${målReps ? `<div style="font-size:11px;color:var(--fg-muted);margin-top:2px">Mål: ${antallSett} × ${målReps}</div>` : ''}
+            ${målReps ? `<div style="font-size:11px;color:var(--fg-muted);margin-top:1px">Mål: ${antallSett} × ${målReps}</div>` : ''}
+            ${forrige ? `<div style="font-size:11px;color:var(--fg-muted);margin-top:1px">Forrige: ${forrige.maxKg}kg × ${Math.round(forrige.snittReps)} reps</div>` : '<div style="font-size:11px;color:var(--fg-muted);margin-top:1px">Første gang 🆕</div>'}
           </div>
           <button class="btn btn-secondary btn-sm" onclick="leggTilSett('${navn}','${exId}')">+ Sett</button>
         </div>
+        ${forslag ? `<div style="padding:8px 16px;font-size:12px;font-weight:600;color:${forslagFarge};background:${forslagBg};border-bottom:1px solid var(--border)">${forslag.tekst}</div>` : ''}
         <table class="set-table">
           <thead><tr><th>Sett</th><th>Vekt (kg)</th><th>Reps</th><th></th></tr></thead>
           <tbody id="${exId}_tbody">${byggTabell()}</tbody>
@@ -965,7 +1009,6 @@ function oppdaterLoggVisning() {
       `;
       card.dataset.exNavn = navn;
       card.dataset.exId = exId;
-      card.dataset.byggTabell = '';
       card._byggTabell = byggTabell;
       container.appendChild(card);
     });
