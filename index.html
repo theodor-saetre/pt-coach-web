@@ -353,6 +353,47 @@ body {
 .amount-preview { font-size: 14px; color: var(--fg-muted); text-align: center; }
 
 /* ════════════════════════
+   ONBOARDING
+════════════════════════ */
+.onb-steg { padding: 0 24px; flex: 1; }
+.onb-tittel { font-size: 26px; font-weight: 900; margin: 0 0 6px; }
+.onb-sub { font-size: 14px; color: var(--fg-muted); margin: 0 0 24px; }
+.onb-felt { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+.onb-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--fg-muted); }
+.onb-input {
+  width: 100%; box-sizing: border-box; padding: 14px 16px;
+  border: 1.5px solid var(--border-mid); border-radius: 12px;
+  font-family: inherit; font-size: 16px; font-weight: 600;
+  background: var(--surface2); color: var(--fg); outline: none;
+}
+.onb-input:focus { border-color: var(--accent); }
+.onb-tal-rad { display: flex; align-items: center; gap: 10px; }
+.onb-tal-rad .onb-input { flex: 1; }
+.onb-enhet { font-size: 14px; color: var(--fg-muted); font-weight: 600; white-space: nowrap; }
+.onb-chip {
+  padding: 10px 18px; border-radius: 20px; border: 1.5px solid var(--border-mid);
+  background: var(--surface2); color: var(--fg); font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+}
+.onb-chip.selected { background: var(--accent); border-color: var(--accent); color: #fff; }
+.onb-mål-kort {
+  display: flex; align-items: center; gap: 14px; padding: 14px 16px;
+  border-radius: 14px; border: 1.5px solid var(--border-mid);
+  background: var(--surface2); color: var(--fg); font-family: inherit;
+  text-align: left; cursor: pointer; width: 100%;
+}
+.onb-mål-kort.selected { border-color: var(--accent); background: var(--accent-soft); }
+.onb-nivå-kort {
+  display: flex; align-items: center; gap: 14px; padding: 12px 16px;
+  border-radius: 12px; border: 1.5px solid var(--border-mid);
+  background: var(--surface2); color: var(--fg); font-family: inherit;
+  text-align: left; cursor: pointer; width: 100%; font-size: 15px;
+}
+.onb-nivå-kort.selected { border-color: var(--accent); background: var(--accent-soft); }
+.onb-dot { flex: 1; height: 4px; border-radius: 2px; background: var(--border-mid); transition: background .2s; }
+.onb-dot.active { background: var(--accent); }
+.app-shell.hidden { display: none; }
+
+/* ════════════════════════
    SCREEN: PROFIL
 ════════════════════════ */
 .profil-top {
@@ -394,6 +435,137 @@ body {
 .garmin-title { font-size: 14px; font-weight: 800; }
 .garmin-sub { font-size: 12px; opacity: .7; margin-top: 2px; }
 </style>
+
+<!-- ═══════════════════ ONBOARDING ═══════════════════ -->
+<div id="onboarding" style="display:none;position:fixed;inset:0;z-index:999;background:var(--bg);flex-direction:column;overflow-y:auto">
+
+  <!-- Progress -->
+  <div style="padding:env(safe-area-inset-top,16px) 24px 0;padding-top:max(env(safe-area-inset-top,0px),20px)">
+    <div style="display:flex;gap:6px;margin-bottom:32px">
+      <div class="onb-dot active" id="onb-dot-1"></div>
+      <div class="onb-dot" id="onb-dot-2"></div>
+      <div class="onb-dot" id="onb-dot-3"></div>
+      <div class="onb-dot" id="onb-dot-4"></div>
+    </div>
+  </div>
+
+  <!-- Steg 1: Hvem er du -->
+  <div id="onb-steg-1" class="onb-steg">
+    <div style="font-size:36px;margin-bottom:12px">👋</div>
+    <h1 class="onb-tittel">Velkommen!</h1>
+    <p class="onb-sub">La oss sette opp appen for deg.</p>
+    <div class="onb-felt">
+      <label class="onb-label">Hva heter du?</label>
+      <input id="onb-navn" class="onb-input" type="text" placeholder="Ditt navn" autocomplete="given-name">
+    </div>
+    <div class="onb-felt">
+      <label class="onb-label">E-post <span style="color:var(--fg-muted);font-weight:400">(for senere innlogging)</span></label>
+      <input id="onb-email" class="onb-input" type="email" placeholder="deg@eksempel.no" autocomplete="email" inputmode="email">
+    </div>
+  </div>
+
+  <!-- Steg 2: Kropp -->
+  <div id="onb-steg-2" class="onb-steg" style="display:none">
+    <div style="font-size:36px;margin-bottom:12px">📏</div>
+    <h1 class="onb-tittel">Litt om deg</h1>
+    <p class="onb-sub">Brukes til å beregne kalorier og plan.</p>
+    <div style="display:flex;gap:12px">
+      <div class="onb-felt" style="flex:1">
+        <label class="onb-label">Alder</label>
+        <div class="onb-tal-rad">
+          <input id="onb-alder" class="onb-input" type="number" placeholder="25" min="12" max="90" inputmode="numeric">
+          <span class="onb-enhet">år</span>
+        </div>
+      </div>
+      <div class="onb-felt" style="flex:1">
+        <label class="onb-label">Vekt</label>
+        <div class="onb-tal-rad">
+          <input id="onb-vekt" class="onb-input" type="number" placeholder="75" min="30" max="300" step="0.5" inputmode="decimal">
+          <span class="onb-enhet">kg</span>
+        </div>
+      </div>
+    </div>
+    <div class="onb-felt">
+      <label class="onb-label">Høyde</label>
+      <div class="onb-tal-rad">
+        <input id="onb-hoyde" class="onb-input" type="number" placeholder="175" min="100" max="250" inputmode="numeric">
+        <span class="onb-enhet">cm</span>
+      </div>
+    </div>
+    <div class="onb-felt">
+      <label class="onb-label">Kjønn</label>
+      <div style="display:flex;gap:10px;margin-top:4px">
+        <button class="onb-chip selected" id="chip-mann" onclick="velgKjonn('mann')">Mann</button>
+        <button class="onb-chip" id="chip-kvinne" onclick="velgKjonn('kvinne')">Kvinne</button>
+        <button class="onb-chip" id="chip-annet" onclick="velgKjonn('annet')">Annet</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Steg 3: Mål -->
+  <div id="onb-steg-3" class="onb-steg" style="display:none">
+    <div style="font-size:36px;margin-bottom:12px">🎯</div>
+    <h1 class="onb-tittel">Hva er målet ditt?</h1>
+    <p class="onb-sub">Planen tilpasses automatisk.</p>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-top:8px">
+      <button class="onb-mål-kort" id="mal-muskler" onclick="velgMal('muskler')">
+        <span style="font-size:28px">💪</span>
+        <div><div style="font-weight:700">Bygge muskler</div><div style="font-size:12px;color:var(--fg-muted)">Styrketrening og progressiv overbelastning</div></div>
+      </button>
+      <button class="onb-mål-kort" id="mal-vekttap" onclick="velgMal('vekttap')">
+        <span style="font-size:28px">⚖️</span>
+        <div><div style="font-weight:700">Gå ned i vekt</div><div style="font-size:12px;color:var(--fg-muted)">Kaloriunderskudd og fettforbrenning</div></div>
+      </button>
+      <button class="onb-mål-kort" id="mal-kondis" onclick="velgMal('kondis')">
+        <span style="font-size:28px">🏃</span>
+        <div><div style="font-weight:700">Bedre kondis</div><div style="font-size:12px;color:var(--fg-muted)">Utholdenhet og energi</div></div>
+      </button>
+      <button class="onb-mål-kort" id="mal-helse" onclick="velgMal('helse')">
+        <span style="font-size:28px">❤️</span>
+        <div><div style="font-weight:700">Generell helse</div><div style="font-size:12px;color:var(--fg-muted)">Balanse, mobilitet og velvære</div></div>
+      </button>
+    </div>
+  </div>
+
+  <!-- Steg 4: Nivå og dager -->
+  <div id="onb-steg-4" class="onb-steg" style="display:none">
+    <div style="font-size:36px;margin-bottom:12px">🏋️</div>
+    <h1 class="onb-tittel">Din treningsbakgrunn</h1>
+    <p class="onb-sub">Hjelper oss lage riktig program.</p>
+    <div class="onb-felt">
+      <label class="onb-label">Treningsnivå</label>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
+        <button class="onb-nivå-kort" id="niv-nybegynner" onclick="velgNiva('nybegynner')">
+          <span>🌱</span><div><div style="font-weight:600">Nybegynner</div><div style="font-size:12px;color:var(--fg-muted)">Trener av og til eller akkurat startet</div></div>
+        </button>
+        <button class="onb-nivå-kort" id="niv-middels" onclick="velgNiva('middels')">
+          <span>🔥</span><div><div style="font-weight:600">Mellom</div><div style="font-size:12px;color:var(--fg-muted)">1–3 år med regelmessig trening</div></div>
+        </button>
+        <button class="onb-nivå-kort" id="niv-avansert" onclick="velgNiva('avansert')">
+          <span>⚡</span><div><div style="font-weight:600">Avansert</div><div style="font-size:12px;color:var(--fg-muted)">3+ år, kjenner programmering godt</div></div>
+        </button>
+      </div>
+    </div>
+    <div class="onb-felt">
+      <label class="onb-label">Dager per uke: <strong id="onb-dager-vis">4</strong></label>
+      <input id="onb-dager" type="range" min="2" max="6" value="4" step="1"
+        oninput="document.getElementById('onb-dager-vis').textContent=this.value"
+        style="width:100%;margin-top:8px;accent-color:var(--accent)">
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--fg-muted);margin-top:2px">
+        <span>2</span><span>3</span><span>4</span><span>5</span><span>6</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Navigasjon -->
+  <div style="padding:16px 24px;padding-bottom:max(env(safe-area-inset-bottom,0px),24px);display:flex;gap:12px;margin-top:auto">
+    <button id="onb-tilbake" class="btn btn-secondary" style="flex:1;display:none" onclick="onbTilbake()">← Tilbake</button>
+    <button id="onb-neste" class="btn btn-primary" style="flex:2" onclick="onbNeste()">Neste →</button>
+  </div>
+</div>
+
+<!-- ═══════════════════ APP SHELL ═══════════════════ -->
+<div class="app-shell">
 
 <!-- ═══════════════════ I DAG ═══════════════════ -->
 <div id="screen-idag" class="screen active">
@@ -554,10 +726,9 @@ body {
   </div>
 
   <div class="profil-top">
-    <div class="avatar">T</div>
-    <div class="profil-name">Theod</div>
-    <div class="profil-sub">23 år · 183 cm · Styrke</div>
-    <span class="tag tag-blue">Middels nivå</span>
+    <div class="avatar" id="profil-avatar">?</div>
+    <div class="profil-name" id="profil-name">—</div>
+    <div class="profil-sub" id="profil-sub"></div>
   </div>
 
   <div class="section" style="padding-top:0">
@@ -705,6 +876,7 @@ body {
     <div class="nav-label">Profil</div>
   </button>
 </nav>
+</div><!-- end app-shell -->
 
 <script>
 // ══════════════════════════════════════
@@ -979,6 +1151,7 @@ function hentNyPlan() {
   hentPlan();
 }
 
+sjekkOnboarding();
 hentPlan();
 oppdaterStatOkter();
 
@@ -1543,6 +1716,7 @@ function oppdaterAktivistetVisning() {
 function oppdaterProfilVisning() {
   const hist = hentLoggHistorikk();
   const vekt = hentVekt();
+  const profil = hentProfilFraLS();
   document.getElementById('profil-vekt').textContent = vekt + ' kg';
   document.getElementById('settings-vekt').textContent = vekt + ' kg →';
   document.getElementById('stat-vekt').textContent = vekt;
@@ -1550,6 +1724,14 @@ function oppdaterProfilVisning() {
   const mandag = new Date(); mandag.setDate(mandag.getDate() - ((mandag.getDay()+6)%7)); mandag.setHours(0,0,0,0);
   const uke = hist.filter(h => new Date(h.dato) >= mandag).length;
   document.getElementById('profil-uke').textContent = uke;
+  if (profil) {
+    const navnEl = document.getElementById('profil-name');
+    const subEl = document.getElementById('profil-sub');
+    const avatarEl = document.getElementById('profil-avatar');
+    if (navnEl) navnEl.textContent = profil.navn;
+    if (subEl) subEl.textContent = (profil.mal ? {muskler:'Bygge muskler',vekttap:'Gå ned i vekt',kondis:'Bedre kondis',helse:'Generell helse'}[profil.mal] : '') + (profil.niva ? ' · ' + profil.niva : '');
+    if (avatarEl) avatarEl.textContent = profil.navn ? profil.navn[0].toUpperCase() : '👤';
+  }
   loggVektDag(vekt);
   setTimeout(tegnVektGraf, 50);
 }
@@ -1570,6 +1752,118 @@ function lagreVekt() {
   loggVektDag(ny);
   lukkVektModal();
   oppdaterProfilVisning();
+}
+
+// ══════════════════════════════════════
+// ONBOARDING
+// ══════════════════════════════════════
+let onbSteg = 1;
+let onbData = { kjonn: 'mann', mal: null, niva: null };
+
+function visOnboarding() {
+  document.getElementById('onboarding').style.display = 'flex';
+  document.querySelector('.app-shell')?.classList.add('hidden');
+  onbGåTilSteg(1);
+}
+
+function onbGåTilSteg(n) {
+  for (let i = 1; i <= 4; i++) {
+    document.getElementById('onb-steg-' + i).style.display = i === n ? 'block' : 'none';
+    const dot = document.getElementById('onb-dot-' + i);
+    if (dot) dot.classList.toggle('active', i <= n);
+  }
+  document.getElementById('onb-tilbake').style.display = n === 1 ? 'none' : '';
+  document.getElementById('onb-neste').textContent = n === 4 ? 'Start appen 🚀' : 'Neste →';
+  onbSteg = n;
+}
+
+function velgKjonn(k) {
+  onbData.kjonn = k;
+  ['mann','kvinne','annet'].forEach(x => document.getElementById('chip-'+x)?.classList.toggle('selected', x === k));
+}
+function velgMal(m) {
+  onbData.mal = m;
+  ['muskler','vekttap','kondis','helse'].forEach(x => document.getElementById('mal-'+x)?.classList.toggle('selected', x === m));
+}
+function velgNiva(n) {
+  onbData.niva = n;
+  ['nybegynner','middels','avansert'].forEach(x => document.getElementById('niv-'+x)?.classList.toggle('selected', x === n));
+}
+
+function onbNeste() {
+  if (onbSteg === 1) {
+    const navn = document.getElementById('onb-navn').value.trim();
+    if (!navn) { visTost('Skriv inn navn'); return; }
+    onbData.navn = navn;
+    onbData.email = document.getElementById('onb-email').value.trim();
+  } else if (onbSteg === 2) {
+    const alder = parseInt(document.getElementById('onb-alder').value);
+    const vekt = parseFloat(document.getElementById('onb-vekt').value);
+    const hoyde = parseInt(document.getElementById('onb-hoyde').value);
+    if (!alder || !vekt || !hoyde) { visTost('Fyll inn alle felt'); return; }
+    onbData.alder = alder; onbData.vekt = vekt; onbData.hoyde = hoyde;
+  } else if (onbSteg === 3) {
+    if (!onbData.mal) { visTost('Velg et mål'); return; }
+  } else if (onbSteg === 4) {
+    if (!onbData.niva) { visTost('Velg treningsnivå'); return; }
+    onbData.dager = parseInt(document.getElementById('onb-dager').value);
+    onbFullfor();
+    return;
+  }
+  onbGåTilSteg(onbSteg + 1);
+}
+
+function onbTilbake() {
+  if (onbSteg > 1) onbGåTilSteg(onbSteg - 1);
+}
+
+function onbFullfor() {
+  const profil = {
+    navn: onbData.navn, email: onbData.email || '',
+    alder: onbData.alder, vekt: onbData.vekt, hoyde: onbData.hoyde,
+    kjonn: onbData.kjonn, mal: onbData.mal,
+    niva: onbData.niva, dager: onbData.dager,
+    onboarded: true, registrert: iDag()
+  };
+  lsSave('ptc_profil', profil);
+  lsSave('ptc_vekt', profil.vekt);
+  loggVektDag(profil.vekt);
+
+  // Oppdater BILDE med brukerdata
+  BILDE.bruker.navn = profil.navn;
+  BILDE.bruker.alder = profil.alder;
+  BILDE.bruker.kjonn = profil.kjonn;
+  BILDE.bruker.vekt_kg = profil.vekt;
+  BILDE.bruker.hoyde_cm = profil.hoyde;
+  BILDE.bruker.mal = profil.mal;
+  BILDE.bruker.niva_egenvurdering = profil.niva;
+
+  document.getElementById('onboarding').style.display = 'none';
+  document.querySelector('.app-shell')?.classList.remove('hidden');
+  oppdaterProfilVisning();
+  visTost('Velkommen, ' + profil.navn + '! 🎉');
+  hentPlan();
+}
+
+function hentProfilFraLS() {
+  const p = ls('ptc_profil', null);
+  if (!p || !p.onboarded) return null;
+  return p;
+}
+
+function sjekkOnboarding() {
+  const profil = hentProfilFraLS();
+  if (!profil) {
+    visOnboarding();
+  } else {
+    BILDE.bruker.navn = profil.navn || BILDE.bruker.navn;
+    BILDE.bruker.alder = profil.alder || BILDE.bruker.alder;
+    BILDE.bruker.kjonn = profil.kjonn || BILDE.bruker.kjonn;
+    BILDE.bruker.vekt_kg = profil.vekt || hentVekt();
+    BILDE.bruker.hoyde_cm = profil.hoyde || BILDE.bruker.hoyde_cm;
+    BILDE.bruker.mal = profil.mal || BILDE.bruker.mal;
+    BILDE.bruker.niva_egenvurdering = profil.niva || BILDE.bruker.niva_egenvurdering;
+  }
 }
 
 function visTost(tekst) {
