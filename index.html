@@ -440,6 +440,9 @@ body {
     <button class="btn btn-primary btn-full" id="start-okt-btn" style="display:none" onclick="goToLogg()">
       Start økt →
     </button>
+
+    <div class="section-label">Denne uka</div>
+    <div id="uke-oppsummering" style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px"></div>
   </div>
 </div>
 
@@ -561,6 +564,17 @@ body {
       <div class="stat-card">
         <div class="stat-card-val">2900</div>
         <div class="stat-card-label">Kcal-mål/dag</div>
+      </div>
+    </div>
+
+    <div class="section-label">Vektutvikling</div>
+    <div class="card">
+      <div class="card-body" style="padding:12px 16px 16px">
+        <canvas id="vekt-graf" height="120" style="width:100%;display:block"></canvas>
+        <div style="display:flex;justify-content:space-between;margin-top:8px">
+          <span style="font-size:12px;color:var(--fg-muted)" id="vekt-graf-fra"></span>
+          <span style="font-size:12px;color:var(--fg-muted)" id="vekt-graf-til"></span>
+        </div>
       </div>
     </div>
 
@@ -1071,16 +1085,42 @@ function oppdaterLoggVisning() {
   if (!hist.length) {
     histList.innerHTML = '<div class="card"><div class="card-body" style="color:var(--fg-muted);text-align:center">Ingen fullførte økter ennå.</div></div>';
   } else {
-    histList.innerHTML = hist.slice().reverse().map(h =>
-      `<div class="hist-item">
-        <div class="hist-date">${h.dato}</div>
-        <div class="hist-name">${h.navn}</div>
-        <div class="hist-tags">
-          <span class="tag tag-green">Fullført ✓</span>
-          ${h.øvelser ? '<span class="tag tag-grey">' + h.øvelser + ' øvelser</span>' : ''}
+    histList.innerHTML = hist.slice().reverse().map(h => {
+      const datoObj = new Date(h.dato);
+      const dager = ['Søn','Man','Tir','Ons','Tor','Fre','Lør'];
+      const mnd = ['jan','feb','mar','apr','mai','jun','jul','aug','sep','okt','nov','des'];
+      const datoStr = dager[datoObj.getDay()] + ' ' + datoObj.getDate() + '. ' + mnd[datoObj.getMonth()];
+
+      // Bygg oversikt over sett per øvelse
+      let settDetaljer = '';
+      if (h.logg) {
+        settDetaljer = Object.entries(h.logg).map(([navn, sett]) => {
+          const ferdigeSett = sett.filter(s => s.kg && s.reps);
+          if (!ferdigeSett.length) return '';
+          const maxKg = Math.max(...ferdigeSett.map(s => parseFloat(s.kg)||0));
+          return `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)">
+            <span style="font-size:13px;font-weight:500">${navn}</span>
+            <span style="font-size:12px;color:var(--fg-muted)">${ferdigeSett.length} sett · maks ${maxKg}kg</span>
+          </div>`;
+        }).filter(Boolean).join('');
+      }
+
+      return `<div class="hist-item" onclick="this.querySelector('.hist-detaljer').style.display=this.querySelector('.hist-detaljer').style.display==='none'?'block':'none'">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div>
+            <div class="hist-date">${datoStr}</div>
+            <div class="hist-name">${h.navn}</div>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
+            <span class="tag tag-green">✓ Fullført</span>
+            ${h.øvelser ? '<span class="tag tag-grey">'+h.øvelser+' øvelser</span>' : ''}
+          </div>
         </div>
-      </div>`
-    ).join('');
+        <div class="hist-detaljer" style="display:none;margin-top:10px;border-top:1px solid var(--border);padding-top:8px">
+          ${settDetaljer || '<div style="font-size:12px;color:var(--fg-muted)">Ingen detaljdata</div>'}
+        </div>
+      </div>`;
+    }).join('');
   }
 }
 
@@ -1374,12 +1414,11 @@ function oppdaterProfilVisning() {
   document.getElementById('settings-vekt').textContent = vekt + ' kg →';
   document.getElementById('stat-vekt').textContent = vekt;
   document.getElementById('profil-okter-totalt').textContent = hist.length;
-  const uke = hist.filter(h => {
-    const d = new Date(h.dato);
-    const mandag = new Date(); mandag.setDate(mandag.getDate() - mandag.getDay() + 1);
-    return d >= mandag;
-  }).length;
+  const mandag = new Date(); mandag.setDate(mandag.getDate() - ((mandag.getDay()+6)%7)); mandag.setHours(0,0,0,0);
+  const uke = hist.filter(h => new Date(h.dato) >= mandag).length;
   document.getElementById('profil-uke').textContent = uke;
+  loggVektDag(vekt);
+  setTimeout(tegnVektGraf, 50);
 }
 
 function oppdaterVekt() {
@@ -1395,6 +1434,7 @@ function lagreVekt() {
   if (!ny || ny < 30 || ny > 300) return;
   lsSave('ptc_vekt', ny);
   BILDE.bruker.vekt_kg = ny;
+  loggVektDag(ny);
   lukkVektModal();
   oppdaterProfilVisning();
 }
@@ -1433,9 +1473,130 @@ function velgEkstraOkt(i) {
   visPlan({ økt: (window._ekstraOkter || [])[i] });
 }
 
+// ══════════════════════════════════════
+// VEKTGRAF
+// ══════════════════════════════════════
+function hentVektLogg() { return ls('ptc_vekt_logg', []); }
+
+function loggVektDag(kg) {
+  const logg = hentVektLogg();
+  const dag = iDag();
+  const idx = logg.findIndex(e => e.dato === dag);
+  if (idx >= 0) logg[idx].kg = kg;
+  else logg.push({ dato: dag, kg });
+  logg.sort((a,b) => a.dato.localeCompare(b.dato));
+  lsSave('ptc_vekt_logg', logg);
+}
+
+function tegnVektGraf() {
+  const canvas = document.getElementById('vekt-graf');
+  if (!canvas) return;
+  const logg = hentVektLogg();
+  if (logg.length < 2) {
+    const ctx = canvas.getContext('2d');
+    canvas.width = canvas.offsetWidth || 300;
+    canvas.height = 120;
+    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--fg-muted').trim();
+    ctx.font = '13px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('Logg vekten din over tid for å se grafen', canvas.width/2, 65);
+    return;
+  }
+  const W = canvas.offsetWidth || 300, H = 120;
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  const style = getComputedStyle(document.documentElement);
+  const accent = style.getPropertyValue('--accent').trim();
+  const border = style.getPropertyValue('--border').trim();
+  const fg = style.getPropertyValue('--fg').trim();
+  const muted = style.getPropertyValue('--fg-muted').trim();
+
+  const kgVerdier = logg.map(e => e.kg);
+  const minKg = Math.min(...kgVerdier) - 1;
+  const maxKg = Math.max(...kgVerdier) + 1;
+  const pad = { l:10, r:10, t:10, b:24 };
+
+  const xOf = i => pad.l + i * (W - pad.l - pad.r) / (logg.length - 1);
+  const yOf = kg => pad.t + (1 - (kg - minKg)/(maxKg - minKg)) * (H - pad.t - pad.b);
+
+  // Grid line
+  ctx.strokeStyle = border; ctx.lineWidth = 1;
+  ctx.setLineDash([3,3]);
+  const midY = yOf((minKg+maxKg)/2);
+  ctx.beginPath(); ctx.moveTo(pad.l, midY); ctx.lineTo(W-pad.r, midY); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Fill
+  ctx.beginPath();
+  ctx.moveTo(xOf(0), yOf(logg[0].kg));
+  logg.forEach((e,i) => { if(i>0) ctx.lineTo(xOf(i), yOf(e.kg)); });
+  ctx.lineTo(xOf(logg.length-1), H-pad.b);
+  ctx.lineTo(xOf(0), H-pad.b);
+  ctx.closePath();
+  ctx.fillStyle = accent + '22';
+  ctx.fill();
+
+  // Line
+  ctx.beginPath();
+  ctx.strokeStyle = accent; ctx.lineWidth = 2.5; ctx.lineJoin = 'round';
+  logg.forEach((e,i) => i===0 ? ctx.moveTo(xOf(i),yOf(e.kg)) : ctx.lineTo(xOf(i),yOf(e.kg)));
+  ctx.stroke();
+
+  // Dots + labels
+  logg.forEach((e,i) => {
+    const x = xOf(i), y = yOf(e.kg);
+    ctx.beginPath(); ctx.arc(x,y,3.5,0,Math.PI*2);
+    ctx.fillStyle = accent; ctx.fill();
+    if (i === logg.length-1 || i === 0) {
+      ctx.fillStyle = fg; ctx.font = 'bold 11px system-ui'; ctx.textAlign = 'center';
+      ctx.fillText(e.kg+'kg', x, y-8);
+    }
+  });
+
+  // X-labels
+  const fra = logg[0].dato.slice(5).replace('-','/');
+  const til = logg[logg.length-1].dato.slice(5).replace('-','/');
+  document.getElementById('vekt-graf-fra').textContent = fra;
+  document.getElementById('vekt-graf-til').textContent = til;
+}
+
+// ══════════════════════════════════════
+// UKESOPPSUMMERING
+// ══════════════════════════════════════
+function oppdaterUkesOppsummering() {
+  const container = document.getElementById('uke-oppsummering');
+  if (!container) return;
+  const mandag = new Date();
+  mandag.setDate(mandag.getDate() - ((mandag.getDay()+6)%7));
+  mandag.setHours(0,0,0,0);
+
+  const hist = hentLoggHistorikk().filter(h => new Date(h.dato) >= mandag);
+  const akter = [];
+  for (let i=0; i<7; i++) {
+    const d = new Date(mandag); d.setDate(d.getDate()+i);
+    const key = d.toISOString().slice(0,10);
+    akter.push(...(ls('ptc_akt_'+key, [])));
+  }
+  const totalKcal = akter.reduce((s,a) => s+a.kcal, 0);
+  const totalAktMin = akter.reduce((s,a) => s+a.min, 0);
+
+  container.innerHTML = [
+    { val: hist.length, label: 'Styrkeøkter', icon: '🏋️' },
+    { val: akter.length, label: 'Aktiviteter', icon: '🏃' },
+    { val: totalAktMin + ' min', label: 'Aktiv tid', icon: '⏱️' },
+    { val: totalKcal ? totalKcal+' kcal' : '—', label: 'Forbrent uka', icon: '🔥' },
+  ].map(s => `
+    <div class="stat-box" style="display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:12px 14px">
+      <div style="font-size:20px">${s.icon}</div>
+      <div class="stat-box-val" style="font-size:20px">${s.val}</div>
+      <div class="stat-box-label">${s.label}</div>
+    </div>`).join('');
+}
+
 // Init
 oppdaterProfilVisning();
 oppdaterMatVisning();
+oppdaterUkesOppsummering();
 
 // Service worker
 if ('serviceWorker' in navigator) {
