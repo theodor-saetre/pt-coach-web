@@ -1,4 +1,4 @@
-const CACHE = 'ptcoach-v1';
+const CACHE = 'ptcoach-v2';
 const FILES = ['/pt-coach-web/', '/pt-coach-web/index.html'];
 
 self.addEventListener('install', e => {
