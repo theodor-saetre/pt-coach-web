@@ -450,33 +450,35 @@ body {
 <div id="screen-logg" class="screen">
   <div class="top-header">
     <div>
-      <div class="header-title">Logg økt</div>
-      <div class="header-sub" id="logg-sub">Fyll inn sett og reps</div>
+      <div class="header-title">Treningslogg</div>
+      <div class="header-sub" id="logg-sub">Denne uka</div>
     </div>
     <div style="display:flex;gap:8px">
       <button class="btn btn-secondary btn-sm" onclick="openAddAktivitet()">+ Aktivitet</button>
-      <button class="btn btn-primary btn-sm" id="fullfør-btn" onclick="fullforOkt()">Fullfør ✓</button>
+      <button class="btn btn-primary btn-sm" id="fullfør-btn" onclick="fullforOkt()" style="display:none">Fullfør ✓</button>
     </div>
   </div>
 
   <div class="section">
-    <div class="section-label">Pågående økt</div>
-    <div id="logg-okt-container">
-      <div class="card">
-        <div class="card-body" style="color:var(--fg-muted);text-align:center;padding:24px">
-          Gå til «I dag» og trykk «Start økt» for å begynne logging.
-        </div>
-      </div>
+    <!-- Aktiv økt — kun synlig under trening -->
+    <div id="logg-aktiv-seksjon" style="display:none;flex-direction:column;gap:12px">
+      <div class="section-label">Pågående økt</div>
+      <div id="logg-okt-container"></div>
     </div>
+
+    <!-- Ukesplan -->
+    <div class="section-label">Ukesplan</div>
+    <div class="card" id="logg-ukesplan" style="overflow:hidden"></div>
+
+    <!-- Aktiviteter i dag -->
     <div id="akt-dag-section" style="display:none;flex-direction:column;gap:8px">
       <div class="section-label">Aktiviteter i dag</div>
       <div id="akt-dag-liste" style="display:flex;flex-direction:column;gap:8px"></div>
     </div>
-    <div style="height:8px"></div>
+
+    <!-- Historikk -->
     <div class="section-label">Historikk</div>
-    <div id="historikk-list" style="display:flex;flex-direction:column;gap:10px;">
-      <!-- filled by JS -->
-    </div>
+    <div id="historikk-list" style="display:flex;flex-direction:column;gap:10px"></div>
   </div>
 </div>
 
@@ -1005,14 +1007,74 @@ function beregnForslag(forrige, målReps) {
   }
 }
 
+function byggOgVisUkesplan() {
+  const el = document.getElementById('logg-ukesplan');
+  if (!el) return;
+  const hist = hentLoggHistorikk();
+  const iDagStr = iDag();
+  const mandag = new Date();
+  mandag.setDate(mandag.getDate() - ((mandag.getDay() + 6) % 7));
+  mandag.setHours(0,0,0,0);
+  const dagKort = ['Man','Tir','Ons','Tor','Fre','Lør','Søn'];
+  const mnd = ['jan','feb','mar','apr','mai','jun','jul','aug','sep','okt','nov','des'];
+
+  el.innerHTML = dagKort.map((dagNavn, i) => {
+    const dato = new Date(mandag);
+    dato.setDate(dato.getDate() + i);
+    const datoStr = dato.toISOString().slice(0,10);
+    const jsDay = i === 6 ? 0 : i + 1;
+    const plan = LOKAL_UKESPLAN[jsDay];
+    const erIdag = datoStr === iDagStr;
+    const erFortid = datoStr < iDagStr;
+    const fullfort = hist.find(h => h.dato === datoStr);
+    const datoVis = dato.getDate() + '. ' + mnd[dato.getMonth()];
+
+    let statusHtml;
+    if (fullfort) {
+      statusHtml = `<span style="font-size:11px;font-weight:700;color:var(--success)">✓</span>`;
+    } else if (!plan) {
+      statusHtml = `<span style="font-size:11px;color:var(--fg-muted)">—</span>`;
+    } else if (erIdag) {
+      statusHtml = `<span style="font-size:11px;font-weight:700;color:var(--accent)">I dag</span>`;
+    } else if (erFortid) {
+      statusHtml = `<span style="font-size:11px;color:var(--fg-muted)">Hoppet</span>`;
+    } else {
+      statusHtml = `<span style="font-size:11px;color:var(--fg-muted)">Kommende</span>`;
+    }
+
+    const rowBg = erIdag ? 'background:var(--surface2)' : '';
+    const dagFarge = erIdag ? 'color:var(--accent)' : 'color:var(--fg-muted)';
+    const dagNumFarge = erIdag ? 'color:var(--accent)' : 'color:var(--fg)';
+
+    return `<div style="display:flex;align-items:center;gap:12px;padding:11px 16px;border-bottom:1px solid var(--border);${rowBg}">
+      <div style="width:30px;text-align:center;flex-shrink:0">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;${dagFarge}">${dagNavn}</div>
+        <div style="font-size:14px;font-weight:800;${dagNumFarge}">${dato.getDate()}</div>
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:14px;font-weight:600;color:${!plan ? 'var(--fg-muted)' : 'var(--fg)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${plan ? plan.navn : 'Hviledag'}</div>
+        ${plan ? `<div style="font-size:11px;color:var(--fg-muted)">${plan.øvelser.length} øvelser · ${plan.varighet_min} min</div>` : ''}
+      </div>
+      ${statusHtml}
+    </div>`;
+  }).join('');
+}
+
 function oppdaterLoggVisning() {
   const okt = hentAktivOkt();
   const container = document.getElementById('logg-okt-container');
+  const aktivSeksjon = document.getElementById('logg-aktiv-seksjon');
+  const fullforBtn = document.getElementById('fullfør-btn');
+  const loggSub = document.getElementById('logg-sub');
 
   if (!okt || !okt.øvelser?.length) {
-    container.innerHTML = '<div class="card"><div class="card-body" style="color:var(--fg-muted);text-align:center;padding:24px">Gå til «I dag» og trykk «Start økt».</div></div>';
+    aktivSeksjon.style.display = 'none';
+    fullforBtn.style.display = 'none';
+    loggSub.textContent = 'Denne uka';
   } else {
-    document.getElementById('logg-sub').textContent = okt.navn || 'Økt';
+    aktivSeksjon.style.display = 'flex';
+    fullforBtn.style.display = '';
+    loggSub.textContent = okt.navn || 'Økt pågår';
     container.innerHTML = '';
     okt.øvelser.forEach((ex, ei) => {
       const navn = ex.navn || ex.name || 'Øvelse ' + (ei+1);
@@ -1077,6 +1139,7 @@ function oppdaterLoggVisning() {
     });
   }
 
+  byggOgVisUkesplan();
   oppdaterAktivistetVisning();
 
   // Historikk
