@@ -402,7 +402,10 @@ body {
       <div class="header-title">I dag 💪</div>
       <div class="header-sub" id="dato-sub">Laster...</div>
     </div>
-    <button class="btn btn-secondary btn-sm btn-icon" onclick="toggleTheme()" title="Bytt tema">🌙</button>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-secondary btn-sm" onclick="hentNyPlan()" title="Hent ny plan">🔄</button>
+      <button class="btn btn-secondary btn-sm btn-icon" onclick="toggleTheme()" title="Bytt tema">🌙</button>
+    </div>
   </div>
 
   <div class="section" style="gap:14px;">
@@ -850,6 +853,17 @@ function oppdaterStatOkter() {
     return d >= mandag;
   }).length;
   document.getElementById('stat-okter').textContent = uke;
+}
+
+function hentNyPlan() {
+  currentPlan = null;
+  lsSave('ptc_plan_' + iDag(), null);
+  document.getElementById('plan-container').innerHTML =
+    '<div class="plan-loading" id="plan-loading"><div class="spinner"></div><div>Henter AI-plan…</div></div>';
+  document.getElementById('start-okt-btn').style.display = 'none';
+  document.getElementById('hero-okt-tittel').textContent = 'Henter treningsplan…';
+  document.getElementById('hero-okt-sub').textContent = 'Kobler til AI…';
+  hentPlan();
 }
 
 hentPlan();
