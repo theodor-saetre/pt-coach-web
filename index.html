@@ -461,10 +461,20 @@ body {
   </div>
 
   <div class="section">
-    <!-- Aktiv økt — kun synlig under trening -->
-    <div id="logg-aktiv-seksjon" style="display:none;flex-direction:column;gap:12px">
-      <div class="section-label">Pågående økt</div>
-      <div id="logg-okt-container"></div>
+    <!-- Aktiv økt — kompakt banner, kan utvides -->
+    <div id="logg-aktiv-seksjon" style="display:none;flex-direction:column;gap:0">
+      <div class="card" style="overflow:hidden;margin-bottom:0">
+        <div style="display:flex;align-items:center;gap:12px;padding:14px 16px" onclick="toggleLoggOkt()">
+          <div style="font-size:20px">🏋️</div>
+          <div style="flex:1;min-width:0">
+            <div id="logg-okt-tittel" style="font-weight:700;font-size:15px">Pågående økt</div>
+            <div id="logg-okt-fremgang" style="font-size:12px;color:var(--fg-muted)">Trykk for å fortsette</div>
+          </div>
+          <span id="logg-okt-pil" style="font-size:18px;color:var(--fg-muted);transition:transform .2s">›</span>
+        </div>
+        <div id="logg-okt-container" style="display:none"></div>
+      </div>
+      <div style="height:12px"></div>
     </div>
 
     <!-- Ukesplan -->
@@ -1078,10 +1088,29 @@ function oppdaterLoggVisning() {
     loggSub.textContent = 'Denne uka';
   } else {
     aktivSeksjon.style.display = 'flex';
-    fullforBtn.style.display = '';
     avbrytBtn.style.display = '';
-    loggSub.textContent = okt.navn || 'Økt pågår';
-    container.innerHTML = '';
+    loggSub.textContent = 'Denne uka';
+
+    // Oppdater banner-tekst
+    const tittelEl = document.getElementById('logg-okt-tittel');
+    const fremgangEl = document.getElementById('logg-okt-fremgang');
+    if (tittelEl) tittelEl.textContent = okt.navn || 'Pågående økt';
+    if (fremgangEl) {
+      const antallMedData = okt.øvelser.filter(ex => {
+        const n = ex.navn || ex.name;
+        return loggData[n] && loggData[n].some(s => s.kg || s.reps);
+      }).length;
+      fremgangEl.textContent = antallMedData > 0
+        ? `${antallMedData} av ${okt.øvelser.length} øvelser startet · trykk for å fortsette`
+        : `${okt.øvelser.length} øvelser · trykk for å starte`;
+    }
+
+    // Vis Fullfør kun når container er åpent
+    const erÅpen = container.style.display !== 'none';
+    fullforBtn.style.display = erÅpen ? '' : 'none';
+
+    if (container.innerHTML === '') {
+      // Bygg exercise cards bare første gang (eller etter reset)
     okt.øvelser.forEach((ex, ei) => {
       const navn = ex.navn || ex.name || 'Øvelse ' + (ei+1);
       const antallSett = parseInt(ex.sett) || 3;
@@ -1143,6 +1172,7 @@ function oppdaterLoggVisning() {
       card._byggTabell = byggTabell;
       container.appendChild(card);
     });
+    } // end if container.innerHTML === ''
   }
 
   byggOgVisUkesplan();
@@ -1229,6 +1259,16 @@ function slettSett(navn, si, exId) {
   oppdaterSettTabell(navn, exId);
 }
 
+function toggleLoggOkt() {
+  const container = document.getElementById('logg-okt-container');
+  const pil = document.getElementById('logg-okt-pil');
+  const fullforBtn = document.getElementById('fullfør-btn');
+  const erÅpen = container.style.display !== 'none';
+  container.style.display = erÅpen ? 'none' : 'block';
+  if (pil) pil.style.transform = erÅpen ? '' : 'rotate(90deg)';
+  if (fullforBtn) fullforBtn.style.display = erÅpen ? 'none' : '';
+}
+
 let _avbrytBekreft = false;
 function avbrytOkt() {
   const btn = document.getElementById('avbryt-btn');
@@ -1245,6 +1285,8 @@ function avbrytOkt() {
   _avbrytBekreft = false;
   localStorage.removeItem('ptc_aktiv_okt');
   loggData = {};
+  const c = document.getElementById('logg-okt-container');
+  if (c) c.innerHTML = '';
   oppdaterLoggVisning();
   visTost('Økt avbrutt');
 }
@@ -1267,6 +1309,8 @@ function fullforOkt() {
 
   loggData = {};
   lsSave('ptc_aktiv_okt', null);
+  const _c = document.getElementById('logg-okt-container');
+  if (_c) _c.innerHTML = '';
   oppdaterStatOkter();
   oppdaterProfilVisning();
 
