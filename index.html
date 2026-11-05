@@ -785,8 +785,45 @@ async function hentPlan() {
   }
 }
 
+const LOKAL_UKESPLAN = {
+  1: { navn: 'Push — Bryst & Skuldre', varighet_min: 60, øvelser: [
+    { navn: 'Benkpress', sett: 4, reps: '6-8' },
+    { navn: 'Incline Dumbbell Press', sett: 3, reps: '8-10' },
+    { navn: 'Skulderpress (manualer)', sett: 3, reps: '10-12' },
+    { navn: 'Lateral raises', sett: 3, reps: '12-15' },
+    { navn: 'Triceps pushdown', sett: 3, reps: '12-15' },
+  ]},
+  2: { navn: 'Pull — Rygg & Biceps', varighet_min: 60, øvelser: [
+    { navn: 'Nedtrekk (lat pulldown)', sett: 4, reps: '8-10' },
+    { navn: 'Sittende roing', sett: 3, reps: '8-10' },
+    { navn: 'Facepull', sett: 3, reps: '15' },
+    { navn: 'Bicepscurl (manualer)', sett: 3, reps: '10-12' },
+    { navn: 'Hammer curl', sett: 3, reps: '12' },
+  ]},
+  4: { navn: 'Legs — Bein & Rumpe', varighet_min: 60, øvelser: [
+    { navn: 'Knebøy', sett: 4, reps: '6-8' },
+    { navn: 'Romanian deadlift', sett: 3, reps: '8-10' },
+    { navn: 'Leg press', sett: 3, reps: '10-12' },
+    { navn: 'Leg curl', sett: 3, reps: '12' },
+    { navn: 'Calf raises', sett: 4, reps: '15' },
+  ]},
+  6: { navn: 'Full kropp', varighet_min: 60, øvelser: [
+    { navn: 'Markløft', sett: 4, reps: '5' },
+    { navn: 'Benkpress', sett: 3, reps: '8' },
+    { navn: 'Pullups', sett: 3, reps: 'maks' },
+    { navn: 'Bulgarian split squat', sett: 3, reps: '10 per side' },
+    { navn: 'Planke', sett: 3, reps: '45 sek' },
+  ]},
+};
+
 function visPlan(plan) {
   if (!plan || !plan.økt) {
+    const dag = new Date().getDay(); // 0=søn,1=man,...,6=lør
+    const lokalOkt = LOKAL_UKESPLAN[dag];
+    if (lokalOkt) {
+      visPlan({ økt: lokalOkt });
+      return;
+    }
     document.getElementById('plan-loading').innerHTML =
       '<div class="card"><div class="card-body" style="color:var(--fg-muted)">Ingen økt i dag. Hviledag! 😴</div></div>';
     document.getElementById('hero-okt-tittel').textContent = 'Hviledag 😴';
