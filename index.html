@@ -455,6 +455,7 @@ body {
     </div>
     <div style="display:flex;gap:8px">
       <button class="btn btn-secondary btn-sm" onclick="openAddAktivitet()">+ Aktivitet</button>
+      <button class="btn btn-secondary btn-sm" id="avbryt-btn" onclick="avbrytOkt()" style="display:none">Avbryt</button>
       <button class="btn btn-primary btn-sm" id="fullfør-btn" onclick="fullforOkt()" style="display:none">Fullfør ✓</button>
     </div>
   </div>
@@ -1067,13 +1068,18 @@ function oppdaterLoggVisning() {
   const fullforBtn = document.getElementById('fullfør-btn');
   const loggSub = document.getElementById('logg-sub');
 
+  const avbrytBtn = document.getElementById('avbryt-btn');
   if (!okt || !okt.øvelser?.length) {
     aktivSeksjon.style.display = 'none';
     fullforBtn.style.display = 'none';
+    avbrytBtn.style.display = 'none';
+    avbrytBtn.textContent = 'Avbryt';
+    avbrytBtn.style.color = '';
     loggSub.textContent = 'Denne uka';
   } else {
     aktivSeksjon.style.display = 'flex';
     fullforBtn.style.display = '';
+    avbrytBtn.style.display = '';
     loggSub.textContent = okt.navn || 'Økt pågår';
     container.innerHTML = '';
     okt.øvelser.forEach((ex, ei) => {
@@ -1221,6 +1227,26 @@ function slettSett(navn, si, exId) {
   loggData[navn].splice(si, 1);
   loggData[navn].forEach((s, i) => s.sett = i + 1);
   oppdaterSettTabell(navn, exId);
+}
+
+let _avbrytBekreft = false;
+function avbrytOkt() {
+  const btn = document.getElementById('avbryt-btn');
+  if (!_avbrytBekreft) {
+    _avbrytBekreft = true;
+    btn.textContent = 'Sikker?';
+    btn.style.color = 'var(--danger, #ef4444)';
+    setTimeout(() => {
+      _avbrytBekreft = false;
+      if (btn) { btn.textContent = 'Avbryt'; btn.style.color = ''; }
+    }, 3000);
+    return;
+  }
+  _avbrytBekreft = false;
+  localStorage.removeItem('ptc_aktiv_okt');
+  loggData = {};
+  oppdaterLoggVisning();
+  visTost('Økt avbrutt');
 }
 
 function fullforOkt() {
