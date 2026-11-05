@@ -591,6 +591,21 @@ body {
   </div>
 </div>
 
+<!-- ═══════════════════ VEKT MODAL ═══════════════════ -->
+<div class="amount-modal" id="vekt-modal">
+  <div class="amount-sheet" onclick="event.stopPropagation()">
+    <div class="amount-title">Oppdater vekt</div>
+    <div class="amount-row">
+      <input type="number" class="amount-input" id="vekt-input" placeholder="68" min="30" max="300" step="0.5" inputmode="decimal">
+      <span class="amount-unit">kg</span>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button class="btn btn-secondary" style="flex:1" onclick="lukkVektModal()">Avbryt</button>
+      <button class="btn btn-primary" style="flex:1" onclick="lagreVekt()">Lagre</button>
+    </div>
+  </div>
+</div>
+
 <!-- ═══════════════════ ADD FOOD MODAL ═══════════════════ -->
 <div class="amount-modal" id="mat-modal" onclick="e => e.target===this && closeAddFood()">
   <div class="amount-sheet" onclick="event.stopPropagation()">
@@ -824,8 +839,14 @@ function visPlan(plan) {
       visPlan({ økt: lokalOkt });
       return;
     }
-    document.getElementById('plan-loading').innerHTML =
-      '<div class="card"><div class="card-body" style="color:var(--fg-muted)">Ingen økt i dag. Hviledag! 😴</div></div>';
+    window._ekstraOkter = Object.values(LOKAL_UKESPLAN);
+    document.getElementById('plan-loading').innerHTML = `
+      <div class="card"><div class="card-body" style="text-align:center;padding:24px;display:flex;flex-direction:column;gap:12px">
+        <div style="font-size:40px">😴</div>
+        <div style="font-weight:800;font-size:16px">Hviledag</div>
+        <div style="color:var(--fg-muted);font-size:13px">Fokus på restitusjon og ernæring</div>
+        <button class="btn btn-secondary btn-full" onclick="visEkstraOktValg()">Vil trene likevel →</button>
+      </div></div>`;
     document.getElementById('hero-okt-tittel').textContent = 'Hviledag 😴';
     document.getElementById('hero-okt-sub').textContent = 'Fokus på restitusjon';
     return;
@@ -1234,14 +1255,54 @@ function oppdaterProfilVisning() {
 }
 
 function oppdaterVekt() {
-  const ny = prompt('Ny vekt (kg):', hentVekt());
-  if (!ny || isNaN(parseFloat(ny))) return;
-  lsSave('ptc_vekt', parseFloat(ny));
+  document.getElementById('vekt-input').value = hentVekt();
+  document.getElementById('vekt-modal').classList.add('open');
+  setTimeout(() => document.getElementById('vekt-input').focus(), 100);
+}
+function lukkVektModal() {
+  document.getElementById('vekt-modal').classList.remove('open');
+}
+function lagreVekt() {
+  const ny = parseFloat(document.getElementById('vekt-input').value);
+  if (!ny || ny < 30 || ny > 300) return;
+  lsSave('ptc_vekt', ny);
+  BILDE.bruker.vekt_kg = ny;
+  lukkVektModal();
   oppdaterProfilVisning();
 }
 
+function visTost(tekst) {
+  const t = document.createElement('div');
+  t.style.cssText = 'position:fixed;bottom:calc(var(--nav-h)+20px);left:50%;transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:12px 20px;border-radius:12px;font-size:13px;font-weight:600;z-index:300;white-space:nowrap;box-shadow:0 4px 20px rgba(0,0,0,.3);pointer-events:none';
+  t.textContent = tekst;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+
 function garminKoble() {
-  alert('Garmin-integrasjon kommer i neste versjon! Vil synke aktiviteter automatisk fra Garmin Connect. 🏃‍♂️⌚');
+  visTost('Garmin-integrasjon kommer snart! 🏃‍♂️⌚');
+}
+
+function visEkstraOktValg() {
+  const container = document.getElementById('plan-loading');
+  container.innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div class="section-label" style="padding:0 4px">Velg type økt</div>
+      ${(window._ekstraOkter || []).map((o, i) => `
+        <div class="card" style="cursor:pointer" onclick="velgEkstraOkt(${i})">
+          <div class="card-body" style="display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div style="font-weight:700;font-size:14px">${o.navn}</div>
+              <div style="font-size:12px;color:var(--fg-muted)">${o.øvelser.length} øvelser · ${o.varighet_min} min</div>
+            </div>
+            <span style="color:var(--accent);font-size:18px">→</span>
+          </div>
+        </div>`).join('')}
+    </div>`;
+}
+
+function velgEkstraOkt(i) {
+  visPlan({ økt: (window._ekstraOkter || [])[i] });
 }
 
 // Init
