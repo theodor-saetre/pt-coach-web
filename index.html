@@ -450,7 +450,10 @@ body {
       <div class="header-title">Logg økt</div>
       <div class="header-sub" id="logg-sub">Fyll inn sett og reps</div>
     </div>
-    <button class="btn btn-primary btn-sm" id="fullfør-btn" onclick="fullforOkt()">Fullfør ✓</button>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-secondary btn-sm" onclick="openAddAktivitet()">+ Aktivitet</button>
+      <button class="btn btn-primary btn-sm" id="fullfør-btn" onclick="fullforOkt()">Fullfør ✓</button>
+    </div>
   </div>
 
   <div class="section">
@@ -462,7 +465,11 @@ body {
         </div>
       </div>
     </div>
-    <div style="height:16px"></div>
+    <div id="akt-dag-section" style="display:none;flex-direction:column;gap:8px">
+      <div class="section-label">Aktiviteter i dag</div>
+      <div id="akt-dag-liste" style="display:flex;flex-direction:column;gap:8px"></div>
+    </div>
+    <div style="height:8px"></div>
     <div class="section-label">Historikk</div>
     <div id="historikk-list" style="display:flex;flex-direction:column;gap:10px;">
       <!-- filled by JS -->
@@ -494,6 +501,7 @@ body {
       </div>
     </div>
     <div style="font-size:13px;color:var(--fg-muted)" id="cal-igjen-tekst">2900 kcal igjen</div>
+    <div style="font-size:12px;color:var(--success)" id="cal-forbrent-tekst" style="display:none"></div>
   </div>
 
   <div class="macro-row">
@@ -588,6 +596,26 @@ body {
         <span class="settings-val" id="settings-vekt">68 kg →</span>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ AKTIVITET MODAL ═══════════════════ -->
+<div class="amount-modal" id="akt-modal">
+  <div class="amount-sheet" onclick="event.stopPropagation()">
+    <div class="amount-title" id="akt-modal-tittel">Logg aktivitet</div>
+    <div id="akt-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px"></div>
+    <div id="akt-duration-section" style="display:none;flex-direction:column;gap:12px">
+      <div class="amount-row">
+        <input type="number" class="amount-input" id="akt-min-input" value="60" min="5" max="300" inputmode="numeric" oninput="oppdaterAktPreview()">
+        <span class="amount-unit">min</span>
+      </div>
+      <div class="amount-preview" id="akt-kcal-preview">≈ 0 kcal forbrent</div>
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-secondary" style="flex:1" onclick="visAktGrid()">← Tilbake</button>
+        <button class="btn btn-primary" style="flex:1" onclick="addAktivitet()">Legg til</button>
+      </div>
+    </div>
+    <button class="btn btn-secondary btn-full" onclick="closeAddAktivitet()" style="margin-top:4px">Avbryt</button>
   </div>
 </div>
 
@@ -1035,6 +1063,8 @@ function oppdaterLoggVisning() {
     });
   }
 
+  oppdaterAktivistetVisning();
+
   // Historikk
   const hist = hentLoggHistorikk();
   const histList = document.getElementById('historikk-list');
@@ -1131,10 +1161,14 @@ function oppdaterMatVisning() {
   const totalK = matLogg.reduce((s,e) => s + e.k, 0);
   const totalF = matLogg.reduce((s,e) => s + e.f, 0);
 
+  const forbrentAkt = hentAktiviteter().reduce((s,a) => s + a.kcal, 0);
   document.getElementById('cal-spist').textContent = Math.round(totalKcal);
   document.getElementById('stat-kcal-forbruk').textContent = Math.round(totalKcal);
-  const igjen = KCAL_MÅL - Math.round(totalKcal);
+  const igjen = KCAL_MÅL + forbrentAkt - Math.round(totalKcal);
   document.getElementById('cal-igjen-tekst').textContent = (igjen >= 0 ? igjen + ' kcal igjen' : Math.abs(igjen) + ' kcal over mål');
+  const forbEl = document.getElementById('cal-forbrent-tekst');
+  if (forbrentAkt > 0) { forbEl.textContent = '🔥 +' + forbrentAkt + ' kcal forbrent fra aktivitet'; forbEl.style.display = 'block'; }
+  else { forbEl.style.display = 'none'; }
 
   const pct = Math.min(totalKcal / KCAL_MÅL, 1);
   const circumference = 364.4;
@@ -1234,6 +1268,100 @@ function addFoodEntry() {
   lsSave('ptc_mat_' + iDag(), matLogg);
   closeAddFood();
   oppdaterMatVisning();
+}
+
+// ══════════════════════════════════════
+// AKTIVITETER
+// ══════════════════════════════════════
+const AKTIVITETER = [
+  { n:'Padel',     e:'🏸', met:7.0 },
+  { n:'Tennis',    e:'🎾', met:7.3 },
+  { n:'Golf',      e:'⛳', met:4.5 },
+  { n:'Løping',    e:'🏃', met:9.0 },
+  { n:'Sykling',   e:'🚴', met:7.5 },
+  { n:'Fotball',   e:'⚽', met:7.0 },
+  { n:'Svømming',  e:'🏊', met:7.0 },
+  { n:'Ski',       e:'⛷️', met:7.0 },
+  { n:'Styrke',    e:'🏋️', met:5.0 },
+  { n:'Gåtur',     e:'🚶', met:3.5 },
+  { n:'Basketball',e:'🏀', met:6.5 },
+  { n:'Annet',     e:'🤸', met:5.0 },
+];
+
+function hentAktiviteter() { return ls('ptc_akt_' + iDag(), []); }
+
+let valgtAktivitet = null;
+
+function openAddAktivitet() {
+  valgtAktivitet = null;
+  visAktGrid();
+  document.getElementById('akt-modal-tittel').textContent = 'Logg aktivitet';
+  document.getElementById('akt-modal').classList.add('open');
+}
+function closeAddAktivitet() {
+  document.getElementById('akt-modal').classList.remove('open');
+}
+function visAktGrid() {
+  document.getElementById('akt-duration-section').style.display = 'none';
+  const grid = document.getElementById('akt-grid');
+  grid.style.display = 'grid';
+  grid.innerHTML = AKTIVITETER.map((a, i) =>
+    `<button onclick="velgAktivitet(${i})" style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 8px;border:1.5px solid var(--border);border-radius:12px;background:var(--surface2);cursor:pointer;font-family:inherit">
+      <span style="font-size:26px">${a.e}</span>
+      <span style="font-size:11px;font-weight:600;color:var(--fg)">${a.n}</span>
+    </button>`
+  ).join('');
+}
+function velgAktivitet(i) {
+  valgtAktivitet = AKTIVITETER[i];
+  document.getElementById('akt-modal-tittel').textContent = valgtAktivitet.e + ' ' + valgtAktivitet.n;
+  document.getElementById('akt-grid').style.display = 'none';
+  document.getElementById('akt-min-input').value = '60';
+  document.getElementById('akt-duration-section').style.display = 'flex';
+  oppdaterAktPreview();
+}
+function oppdaterAktPreview() {
+  if (!valgtAktivitet) return;
+  const min = parseFloat(document.getElementById('akt-min-input').value) || 0;
+  const kcal = Math.round(valgtAktivitet.met * hentVekt() * min / 60);
+  document.getElementById('akt-kcal-preview').textContent = '≈ ' + kcal + ' kcal forbrent';
+}
+function addAktivitet() {
+  if (!valgtAktivitet) return;
+  const min = parseFloat(document.getElementById('akt-min-input').value) || 0;
+  const kcal = Math.round(valgtAktivitet.met * hentVekt() * min / 60);
+  const liste = hentAktiviteter();
+  liste.push({ navn: valgtAktivitet.n, emoji: valgtAktivitet.e, min, kcal, dato: iDag() });
+  lsSave('ptc_akt_' + iDag(), liste);
+  closeAddAktivitet();
+  oppdaterAktivistetVisning();
+  oppdaterMatVisning();
+  visTost(`${valgtAktivitet.e} ${valgtAktivitet.n} lagt til — ${kcal} kcal forbrent`);
+}
+function slettAktivitet(i) {
+  const liste = hentAktiviteter();
+  liste.splice(i, 1);
+  lsSave('ptc_akt_' + iDag(), liste);
+  oppdaterAktivistetVisning();
+  oppdaterMatVisning();
+}
+function oppdaterAktivistetVisning() {
+  const liste = hentAktiviteter();
+  const seksjon = document.getElementById('akt-dag-section');
+  const container = document.getElementById('akt-dag-liste');
+  if (!seksjon) return;
+  if (!liste.length) { seksjon.style.display = 'none'; return; }
+  seksjon.style.display = 'flex';
+  container.innerHTML = liste.map((a, i) =>
+    `<div class="card" style="display:flex;align-items:center;gap:12px;padding:12px 16px">
+      <span style="font-size:24px">${a.emoji}</span>
+      <div style="flex:1">
+        <div style="font-weight:700;font-size:14px">${a.navn}</div>
+        <div style="font-size:12px;color:var(--fg-muted)">${a.min} min · ${a.kcal} kcal forbrent</div>
+      </div>
+      <button onclick="slettAktivitet(${i})" style="border:none;background:none;color:var(--fg-muted);font-size:18px;cursor:pointer">×</button>
+    </div>`
+  ).join('');
 }
 
 // ══════════════════════════════════════
