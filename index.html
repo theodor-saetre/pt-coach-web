@@ -800,7 +800,10 @@ body {
       <div class="header-title">Mat & kalorier</div>
       <div class="header-sub" id="mat-dato-sub">I dag</div>
     </div>
-    <button class="btn btn-primary btn-sm" onclick="openAddFood()">+ Legg til</button>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-secondary btn-sm" onclick="openSkann()">📷 Skann</button>
+      <button class="btn btn-primary btn-sm" onclick="openAddFood()">+ Legg til</button>
+    </div>
   </div>
 
   <div class="cal-ring-wrap">
@@ -1139,6 +1142,9 @@ body {
     <button class="btn btn-secondary btn-full" onclick="closeAddFood()" style="margin-top:4px">Lukk</button>
   </div>
 </div>
+
+<!-- Hidden camera input for barcode scanning -->
+<input type="file" id="skann-input" accept="image/*" capture="environment" style="display:none" onchange="behandleSkannBilde(this)">
 
 <!-- ═══════════════════ BOTTOM NAV ═══════════════════ -->
 <!-- ═══════════════════ CHAT ═══════════════════ -->
@@ -1723,10 +1729,12 @@ function oppdaterLoggVisning() {
         settDetaljer = Object.entries(h.logg).map(([navn, sett]) => {
           const ferdigeSett = sett.filter(s => s.kg && s.reps);
           if (!ferdigeSett.length) return '';
-          const maxKg = Math.max(...ferdigeSett.map(s => parseFloat(s.kg)||0));
-          return `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)">
-            <span style="font-size:13px;font-weight:500">${navn}</span>
-            <span style="font-size:12px;color:var(--fg-muted)">${ferdigeSett.length} sett · maks ${maxKg}kg</span>
+          const settRader = ferdigeSett.map((s, i) =>
+            `<span style="display:inline-block;background:var(--surface2);border-radius:6px;padding:2px 7px;font-size:11px;white-space:nowrap">${i+1}: ${s.kg}kg × ${s.reps}</span>`
+          ).join(' ');
+          return `<div style="padding:7px 0;border-bottom:1px solid var(--border)">
+            <div style="font-size:13px;font-weight:600;margin-bottom:4px">${navn}</div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px">${settRader}</div>
           </div>`;
         }).filter(Boolean).join('');
       }
@@ -1921,31 +1929,138 @@ function closeAddFood() {
   document.getElementById('mat-modal').classList.remove('open');
 }
 
+let _søkTimer = null;
+
 function searchFood(q) {
   const wrap = document.getElementById('food-results-wrap');
   const res = document.getElementById('food-results');
   if (!q.trim()) { wrap.style.display = 'none'; return; }
-  const matches = MATVARER.filter(m => m.n.toLowerCase().includes(q.toLowerCase())).slice(0, 8);
-  if (!matches.length) { wrap.style.display = 'none'; return; }
-  res.innerHTML = matches.map(m =>
-    `<div class="food-result-item" onclick="velgMatvare(${MATVARER.indexOf(m)})">
+
+  // Lokale treff vises umiddelbart
+  const lokale = MATVARER.filter(m => m.n.toLowerCase().includes(q.toLowerCase())).slice(0, 5);
+  visMatResultater(lokale, res, wrap);
+
+  // API-søk med debounce
+  clearTimeout(_søkTimer);
+  _søkTimer = setTimeout(async () => {
+    if (q.length < 2) return;
+    try {
+      res.querySelector('.food-api-status')?.remove();
+      const statusEl = document.createElement('div');
+      statusEl.className = 'food-api-status';
+      statusEl.style.cssText = 'padding:8px 12px;font-size:12px;color:var(--fg-muted)';
+      statusEl.textContent = 'Søker i database…';
+      res.appendChild(statusEl);
+      wrap.style.display = 'block';
+
+      const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&fields=product_name,nutriments,brands&page_size=12&lc=no`;
+      const r = await fetch(url);
+      const data = await r.json();
+      statusEl.remove();
+
+      const apiResultater = (data.products || [])
+        .filter(p => p.product_name && p.nutriments?.['energy-kcal_100g'] != null)
+        .slice(0, 10)
+        .map(p => ({
+          n: p.product_name + (p.brands ? ' (' + p.brands.split(',')[0].trim() + ')' : ''),
+          e: '🍽️',
+          kcal: Math.round(p.nutriments['energy-kcal_100g']),
+          p: Math.round(p.nutriments['proteins_100g'] || 0),
+          k: Math.round(p.nutriments['carbohydrates_100g'] || 0),
+          f: Math.round(p.nutriments['fat_100g'] || 0),
+        }));
+
+      // Kombiner: lokale øverst, deretter API-treff
+      const lokal_navn = new Set(lokale.map(m => m.n.toLowerCase()));
+      const ekstra = apiResultater.filter(m => !lokal_navn.has(m.n.toLowerCase()));
+      visMatResultater([...lokale, ...ekstra], res, wrap);
+    } catch { /* nett-feil, vis bare lokale */ }
+  }, 400);
+}
+
+function visMatResultater(liste, res, wrap) {
+  if (!liste.length) { wrap.style.display = 'none'; return; }
+  res.innerHTML = liste.map((m, i) =>
+    `<div class="food-result-item" onclick="velgMatvareObjekt(${i})" data-idx="${i}">
       <div>
         <div class="food-result-name">${m.e} ${m.n}</div>
-        <div class="food-result-kcal">${m.kcal} kcal / 100g</div>
+        <div class="food-result-kcal">${m.kcal} kcal · P:${m.p}g K:${m.k}g F:${m.f}g / 100g</div>
       </div>
       <span style="color:var(--accent);font-size:18px">+</span>
     </div>`
   ).join('');
+  // Lagre listen så vi kan slå opp ved klikk
+  res._resultater = liste;
   wrap.style.display = 'block';
 }
 
-function velgMatvare(idx) {
-  valgtMatvare = MATVARER[idx];
+function velgMatvareObjekt(idx) {
+  const res = document.getElementById('food-results');
+  valgtMatvare = res._resultater?.[idx];
+  if (!valgtMatvare) return;
   document.getElementById('modal-food-name').textContent = valgtMatvare.e + ' ' + valgtMatvare.n;
   document.getElementById('food-results-wrap').style.display = 'none';
   document.getElementById('amount-section').style.display = 'block';
   document.getElementById('amount-input').value = '100';
   updateAmountPreview();
+}
+
+// Legacy – beholdes for bakoverkompatibilitet
+function velgMatvare(idx) { velgMatvareObjekt(idx); }
+
+// ── Strekkodeskanning ──────────────────────────────────
+function openSkann() {
+  document.getElementById('skann-input').value = '';
+  document.getElementById('skann-input').click();
+}
+
+async function behandleSkannBilde(input) {
+  if (!input.files?.[0]) return;
+  visTost('Leser strekkode…');
+  try {
+    if (!window.BarcodeDetector) throw new Error('ikke støttet');
+    const img = await createImageBitmap(input.files[0]);
+    const detektor = new BarcodeDetector({ formats: ['ean_13','ean_8','upc_a','upc_e','code_128','qr_code'] });
+    const koder = await detektor.detect(img);
+    if (!koder.length) { visTost('Ingen strekkode funnet — prøv igjen'); return; }
+    await slåOppStrekkode(koder[0].rawValue);
+  } catch (e) {
+    if (e.message === 'ikke støttet') {
+      // Fallback: be om manuell kode
+      const kode = prompt('Skriv inn strekkode (EAN/UPC):');
+      if (kode) await slåOppStrekkode(kode.trim());
+    } else {
+      visTost('Kunne ikke lese strekkode');
+    }
+  }
+}
+
+async function slåOppStrekkode(kode) {
+  visTost('Henter produkt…');
+  try {
+    const r = await fetch(`https://world.openfoodfacts.org/api/v0/product/${kode}.json`);
+    const data = await r.json();
+    if (data.status !== 1) { visTost('Produkt ikke funnet (kode: ' + kode + ')'); return; }
+    const p = data.product;
+    const kcal = p.nutriments?.['energy-kcal_100g'];
+    if (!p.product_name || kcal == null) { visTost('Mangler næringsdata for dette produktet'); return; }
+    valgtMatvare = {
+      n: p.product_name + (p.brands ? ' (' + p.brands.split(',')[0].trim() + ')' : ''),
+      e: '🍽️',
+      kcal: Math.round(kcal),
+      p: Math.round(p.nutriments['proteins_100g'] || 0),
+      k: Math.round(p.nutriments['carbohydrates_100g'] || 0),
+      f: Math.round(p.nutriments['fat_100g'] || 0),
+    };
+    document.getElementById('modal-food-name').textContent = valgtMatvare.e + ' ' + valgtMatvare.n;
+    document.getElementById('food-results-wrap').style.display = 'none';
+    document.getElementById('food-search-input').value = valgtMatvare.n;
+    document.getElementById('amount-section').style.display = 'block';
+    document.getElementById('amount-input').value = '100';
+    updateAmountPreview();
+    document.getElementById('mat-modal').classList.add('open');
+    visTost('Funnet: ' + p.product_name);
+  } catch { visTost('Nettverksfeil ved oppslag'); }
 }
 
 function updateAmountPreview() {
