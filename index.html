@@ -2547,7 +2547,7 @@ function hentProfilFraLS() {
   return p;
 }
 
-const MAL_MAP = { muskler: 'styrke', kondis: 'kondis', vekttap: 'vekttap', helse: 'helse' };
+const MAL_MAP = { muskler: 'styrke', kondis: 'utholdenhet', vekttap: 'ned_i_vekt', helse: 'holde_formen' };
 
 function sjekkOnboarding() {
   const profil = hentProfilFraLS();
@@ -2575,7 +2575,7 @@ function _brukProfilPåBILDE(profil) {
   BILDE.bruker.niva_egenvurdering = profil.niva || BILDE.bruker.niva_egenvurdering;
   BILDE.bruker.okter_per_uke = profil.dager || BILDE.bruker.okter_per_uke;
   BILDE.bruker.minutter_per_okt = profil.tid || BILDE.bruker.minutter_per_okt;
-  if (profil.utstyr) BILDE.bruker.utstyr = profil.utstyr;
+  if (profil.utstyr) BILDE.bruker.utstyr = ['kroppsvekt', ...profil.utstyr.filter(x => x !== 'kroppsvekt')];
   // mal: oversett første valgte mål til backend-format, send alle som mal_alle
   const malArr = Array.isArray(profil.mal) ? profil.mal : [profil.mal].filter(Boolean);
   BILDE.bruker.mal = MAL_MAP[malArr[0]] || malArr[0] || BILDE.bruker.mal;
