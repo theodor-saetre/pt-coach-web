@@ -657,6 +657,10 @@ body {
       <label class="onb-label">Skader eller begrensninger? <span style="color:var(--fg-muted);font-weight:400">(valgfritt)</span></label>
       <input id="onb-skader" class="onb-input" type="text" placeholder="F.eks. knesmerter, skulder…">
     </div>
+    <div class="onb-felt">
+      <label class="onb-label">Er det noe AI-en bør vite om deg? <span style="color:var(--fg-muted);font-weight:400">(valgfritt)</span></label>
+      <textarea id="onb-ekstra" class="onb-input" rows="3" placeholder="F.eks. «Vil løpe maraton til sommeren», «Bryllup i august», «Vil bare komme i gang igjen»…" style="resize:none;line-height:1.4"></textarea>
+    </div>
   </div>
 
   <!-- Navigasjon -->
@@ -2159,6 +2163,7 @@ function onbNeste() {
   } else if (onbSteg === 6) {
     if (!onbData.niva) { visTost('Velg treningsnivå'); return; }
     onbData.skader = document.getElementById('onb-skader').value.trim();
+    onbData.ekstra_info = document.getElementById('onb-ekstra').value.trim();
     onbFullfor();
     return;
   }
@@ -2180,6 +2185,7 @@ function onbFullfor() {
     tidspunkt: onbData.tidspunkt || null,
     niva: onbData.niva, dager: onbData.dager || 4,
     skader: onbData.skader || '',
+    ekstra_info: onbData.ekstra_info || '',
     onboarded: true, registrert: iDag()
   };
   lsSave('ptc_profil', profil);
@@ -2234,6 +2240,8 @@ function _brukProfilPåBILDE(profil) {
   const malArr = Array.isArray(profil.mal) ? profil.mal : [profil.mal].filter(Boolean);
   BILDE.bruker.mal = MAL_MAP[malArr[0]] || malArr[0] || BILDE.bruker.mal;
   BILDE.bruker.mal_alle = malArr.map(m => MAL_MAP[m] || m);
+  if (profil.skader) BILDE.bruker.skader = profil.skader;
+  if (profil.ekstra_info) BILDE.bruker.ekstra_info = profil.ekstra_info;
 }
 
 function visTost(tekst) {
