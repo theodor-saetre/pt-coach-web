@@ -6,6 +6,9 @@
 <meta name="apple-mobile-web-app-title" content="PT Coach">
 <link rel="manifest" href="manifest.json">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap">
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 
 <style>
 :root {
@@ -392,6 +395,12 @@ body {
 .onb-dot { flex: 1; height: 4px; border-radius: 2px; background: var(--border-mid); transition: background .2s; }
 .onb-dot.active { background: var(--accent); }
 .app-shell.hidden { display: none; }
+.auth-tab {
+  flex: 1; padding: 12px; border: none; background: none;
+  font-family: inherit; font-size: 14px; font-weight: 600;
+  color: var(--fg-muted); cursor: pointer;
+}
+.auth-tab.active { background: var(--accent); color: #fff; }
 
 /* ════════════════════════
    SCREEN: PROFIL
@@ -435,6 +444,32 @@ body {
 .garmin-title { font-size: 14px; font-weight: 800; }
 .garmin-sub { font-size: 12px; opacity: .7; margin-top: 2px; }
 </style>
+
+<!-- ═══════════════════ AUTH ═══════════════════ -->
+<div id="auth-screen" style="display:none;position:fixed;inset:0;z-index:997;background:var(--bg);flex-direction:column;overflow-y:auto">
+  <div style="max-width:400px;margin:0 auto;width:100%;box-sizing:border-box;padding:40px 24px;padding-top:max(env(safe-area-inset-top,0px),48px);min-height:100vh;display:flex;flex-direction:column;justify-content:center">
+    <div style="text-align:center;margin-bottom:36px">
+      <div style="font-size:52px;margin-bottom:12px">💪</div>
+      <h1 style="font-size:28px;font-weight:900;margin:0 0 6px">PT Coach</h1>
+      <p style="color:var(--fg-muted);font-size:14px;margin:0">Din personlige treningsapp</p>
+    </div>
+    <div style="display:flex;gap:0;margin-bottom:24px;border:1.5px solid var(--border-mid);border-radius:12px;overflow:hidden">
+      <button id="auth-tab-login" class="auth-tab active" onclick="authVisTab('login')">Logg inn</button>
+      <button id="auth-tab-register" class="auth-tab" onclick="authVisTab('register')">Ny bruker</button>
+    </div>
+    <div class="onb-felt">
+      <label class="onb-label">E-post</label>
+      <input id="auth-email" class="onb-input" type="email" placeholder="deg@eksempel.no" autocomplete="email" inputmode="email">
+    </div>
+    <div class="onb-felt">
+      <label class="onb-label">Passord</label>
+      <input id="auth-passord" class="onb-input" type="password" placeholder="Minimum 6 tegn" autocomplete="current-password">
+    </div>
+    <div id="auth-feil" style="display:none;padding:12px 14px;background:#fee2e2;color:#ef4444;border-radius:10px;font-size:13px;font-weight:600;margin-bottom:12px"></div>
+    <button id="auth-submit-btn" class="btn btn-primary" style="width:100%;padding:16px;font-size:16px;margin-top:4px" onclick="authSubmit()">Logg inn</button>
+    <p style="text-align:center;margin-top:20px;font-size:12px;color:var(--fg-muted)">Data lagres sikkert i Firebase (Google)</p>
+  </div>
+</div>
 
 <!-- ═══════════════════ ONBOARDING ═══════════════════ -->
 <div id="onboarding" style="display:none;position:fixed;inset:0;z-index:999;background:var(--bg);flex-direction:column;overflow-y:auto">
@@ -565,7 +600,7 @@ body {
 </div>
 
 <!-- ═══════════════════ APP SHELL ═══════════════════ -->
-<div class="app-shell">
+<div class="app-shell" id="app-shell" style="display:none">
 
 <!-- ═══════════════════ I DAG ═══════════════════ -->
 <div id="screen-idag" class="screen active">
@@ -794,6 +829,8 @@ body {
         <span class="settings-val" id="settings-vekt">68 kg →</span>
       </div>
     </div>
+
+    <button class="btn btn-secondary" style="width:100%;margin-top:8px;color:var(--danger,#ef4444)" onclick="loggUt()">Logg ut</button>
   </div>
 </div>
 
@@ -879,6 +916,34 @@ body {
 </div><!-- end app-shell -->
 
 <script>
+// ══════════════════════════════════════
+// FIREBASE
+// ══════════════════════════════════════
+firebase.initializeApp({
+  apiKey: "AIzaSyDuE_MNlg4oBfOWqhHpVO3YSvM8R2Kg7io",
+  authDomain: "pt-coach-6ec40.firebaseapp.com",
+  projectId: "pt-coach-6ec40",
+  storageBucket: "pt-coach-6ec40.firebasestorage.app",
+  messagingSenderId: "426038073244",
+  appId: "1:426038073244:web:703ab1624dc703357f9a59"
+});
+const fbAuth = firebase.auth();
+const fbDb = firebase.firestore();
+let fbUser = null;
+
+fbAuth.onAuthStateChanged(async user => {
+  if (user) {
+    fbUser = user;
+    await lastDataFraFirestore(user.uid);
+    visApp();
+  } else {
+    fbUser = null;
+    document.getElementById('auth-screen').style.display = 'flex';
+    document.getElementById('app-shell').style.display = 'none';
+    document.getElementById('onboarding').style.display = 'none';
+  }
+});
+
 // ══════════════════════════════════════
 // CONFIG
 // ══════════════════════════════════════
@@ -1151,9 +1216,7 @@ function hentNyPlan() {
   hentPlan();
 }
 
-sjekkOnboarding();
-hentPlan();
-oppdaterStatOkter();
+// Startup håndteres av fbAuth.onAuthStateChanged
 
 // ══════════════════════════════════════
 // LOGG — PROGRESSIV OVERLOAD
@@ -1479,6 +1542,7 @@ function fullforOkt() {
     });
   });
   lsSave('ptc_styrkelog', styrkelogg);
+  syncDataFirestore();
 
   loggData = {};
   lsSave('ptc_aktiv_okt', null);
@@ -1752,6 +1816,107 @@ function lagreVekt() {
   loggVektDag(ny);
   lukkVektModal();
   oppdaterProfilVisning();
+  syncDataFirestore();
+}
+
+// ══════════════════════════════════════
+// AUTH
+// ══════════════════════════════════════
+let authModus = 'login';
+
+function authVisTab(modus) {
+  authModus = modus;
+  document.getElementById('auth-tab-login').classList.toggle('active', modus === 'login');
+  document.getElementById('auth-tab-register').classList.toggle('active', modus === 'register');
+  document.getElementById('auth-submit-btn').textContent = modus === 'login' ? 'Logg inn' : 'Opprett konto';
+  document.getElementById('auth-feil').style.display = 'none';
+}
+
+async function authSubmit() {
+  const email = document.getElementById('auth-email').value.trim();
+  const passord = document.getElementById('auth-passord').value;
+  const btn = document.getElementById('auth-submit-btn');
+  if (!email || !passord) { visAuthFeil('Fyll inn e-post og passord'); return; }
+  btn.textContent = '…'; btn.disabled = true;
+  document.getElementById('auth-feil').style.display = 'none';
+  try {
+    if (authModus === 'login') {
+      await fbAuth.signInWithEmailAndPassword(email, passord);
+    } else {
+      await fbAuth.createUserWithEmailAndPassword(email, passord);
+    }
+  } catch (e) {
+    btn.disabled = false;
+    btn.textContent = authModus === 'login' ? 'Logg inn' : 'Opprett konto';
+    const msg = {
+      'auth/user-not-found': 'Finner ingen konto med denne e-posten',
+      'auth/wrong-password': 'Feil passord',
+      'auth/invalid-credential': 'Feil e-post eller passord',
+      'auth/email-already-in-use': 'E-posten er allerede i bruk',
+      'auth/weak-password': 'Passordet må være minst 6 tegn',
+      'auth/invalid-email': 'Ugyldig e-postadresse',
+    };
+    visAuthFeil(msg[e.code] || 'Noe gikk galt – prøv igjen');
+  }
+}
+
+function visAuthFeil(tekst) {
+  const el = document.getElementById('auth-feil');
+  el.textContent = tekst; el.style.display = 'block';
+}
+
+async function loggUt() {
+  await fbAuth.signOut();
+  visTost('Logget ut');
+}
+
+function visApp() {
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('app-shell').style.display = '';
+  sjekkOnboarding();
+  hentPlan();
+  oppdaterStatOkter();
+}
+
+// ══════════════════════════════════════
+// FIRESTORE SYNC
+// ══════════════════════════════════════
+async function lastDataFraFirestore(uid) {
+  try {
+    const profDoc = await fbDb.collection('users').doc(uid).get();
+    if (profDoc.exists) {
+      const d = profDoc.data();
+      if (d.profil) lsSave('ptc_profil', d.profil);
+      if (d.vekt) lsSave('ptc_vekt', d.vekt);
+    }
+    const dataRef = fbDb.collection('users').doc(uid).collection('data');
+    const [loggDoc, styrkeDoc, vektDoc] = await Promise.all([
+      dataRef.doc('logg_hist').get(),
+      dataRef.doc('styrke_logg').get(),
+      dataRef.doc('vekt_logg').get(),
+    ]);
+    if (loggDoc.exists) lsSave('ptc_logg_hist', loggDoc.data().entries || []);
+    if (styrkeDoc.exists) lsSave('ptc_styrkelog', styrkeDoc.data().entries || []);
+    if (vektDoc.exists) lsSave('ptc_vekt_logg', vektDoc.data().entries || []);
+  } catch(e) { console.warn('Firestore last:', e); }
+}
+
+async function lagreProfilFirestore(profil) {
+  if (!fbUser) return;
+  try { await fbDb.collection('users').doc(fbUser.uid).set({ profil, vekt: profil.vekt || hentVekt() }, { merge: true }); } catch {}
+}
+
+async function syncDataFirestore() {
+  if (!fbUser) return;
+  const ref = fbDb.collection('users').doc(fbUser.uid).collection('data');
+  try {
+    await Promise.all([
+      ref.doc('logg_hist').set({ entries: hentLoggHistorikk() }),
+      ref.doc('styrke_logg').set({ entries: hentStyrkelog() }),
+      ref.doc('vekt_logg').set({ entries: ls('ptc_vekt_logg', []) }),
+    ]);
+    await fbDb.collection('users').doc(fbUser.uid).set({ vekt: hentVekt() }, { merge: true });
+  } catch(e) { console.warn('Firestore sync:', e); }
 }
 
 // ══════════════════════════════════════
@@ -1828,6 +1993,7 @@ function onbFullfor() {
   lsSave('ptc_profil', profil);
   lsSave('ptc_vekt', profil.vekt);
   loggVektDag(profil.vekt);
+  lagreProfilFirestore(profil);
 
   // Oppdater BILDE med brukerdata
   BILDE.bruker.navn = profil.navn;
