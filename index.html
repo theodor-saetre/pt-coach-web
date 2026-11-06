@@ -1137,22 +1137,31 @@ async function hentPlan() {
     visPlan(currentPlan);
     return;
   }
-  try {
-    const res = await fetch(BACKEND + '/plan/uten-ai', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(BILDE),
-    });
-    if (!res.ok) throw new Error();
-    const data = await res.json();
-    currentPlan = data.plan;
-    lsSave('ptc_plan_' + iDag(), currentPlan);
-    visPlan(currentPlan);
-  } catch {
-    document.getElementById('plan-loading').innerHTML =
-      '<div style="color:var(--fg-muted);font-size:13px;text-align:center;padding:16px">Kunne ikke hente plan. Prøv igjen.</div>' +
-      '<button class="btn btn-secondary btn-sm" onclick="hentPlan()" style="margin:0 auto;display:block">Prøv igjen</button>';
+  const cached = ls('ptc_plan_' + iDag(), null);
+  if (cached) { currentPlan = cached; visPlan(currentPlan); return; }
+
+  const loading = document.getElementById('plan-loading');
+  if (loading) loading.innerHTML = '<div style="color:var(--fg-muted);font-size:13px;text-align:center;padding:16px">Lager plan med AI... ⏳</div>';
+
+  // Forsøk AI-plan, fall tilbake til regelbasert ved feil
+  for (const endpoint of ['/plan', '/plan/uten-ai']) {
+    try {
+      const res = await fetch(BACKEND + endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(BILDE),
+      });
+      if (!res.ok) continue;
+      const data = await res.json();
+      currentPlan = data.plan;
+      lsSave('ptc_plan_' + iDag(), currentPlan);
+      visPlan(currentPlan);
+      return;
+    } catch { /* prøv neste */ }
   }
+  if (loading) loading.innerHTML =
+    '<div style="color:var(--fg-muted);font-size:13px;text-align:center;padding:16px">Kunne ikke hente plan. Prøv igjen.</div>' +
+    '<button class="btn btn-secondary btn-sm" onclick="hentPlan()" style="margin:0 auto;display:block">Prøv igjen</button>';
 }
 
 const LOKAL_UKESPLAN = {
@@ -2106,10 +2115,7 @@ function onbFullfor() {
   BILDE.bruker.kjonn = profil.kjonn;
   BILDE.bruker.vekt_kg = profil.vekt;
   BILDE.bruker.hoyde_cm = profil.hoyde;
-  BILDE.bruker.mal = Array.isArray(profil.mal) ? profil.mal[0] : profil.mal;
-  BILDE.bruker.niva_egenvurdering = profil.niva;
-  if (profil.utstyr) BILDE.bruker.utstyr = profil.utstyr;
-  if (profil.tid) BILDE.bruker.min_per_okt = profil.tid;
+  _brukProfilPåBILDE(profil);
 
   document.getElementById('onboarding').style.display = 'none';
   document.querySelector('.app-shell')?.classList.remove('hidden');
@@ -2124,21 +2130,32 @@ function hentProfilFraLS() {
   return p;
 }
 
+const MAL_MAP = { muskler: 'styrke', kondis: 'kondis', vekttap: 'vekttap', helse: 'helse' };
+
 function sjekkOnboarding() {
   const profil = hentProfilFraLS();
-  if (!profil) {
+  if (!profil || !profil.utstyr) {
+    // Ingen profil, eller gammel profil uten utstyr-felt → kjør onboarding
     visOnboarding();
   } else {
-    BILDE.bruker.navn = profil.navn || BILDE.bruker.navn;
-    BILDE.bruker.alder = profil.alder || BILDE.bruker.alder;
-    BILDE.bruker.kjonn = profil.kjonn || BILDE.bruker.kjonn;
-    BILDE.bruker.vekt_kg = profil.vekt || hentVekt();
-    BILDE.bruker.hoyde_cm = profil.hoyde || BILDE.bruker.hoyde_cm;
-    BILDE.bruker.mal = (Array.isArray(profil.mal) ? profil.mal[0] : profil.mal) || BILDE.bruker.mal;
-    BILDE.bruker.niva_egenvurdering = profil.niva || BILDE.bruker.niva_egenvurdering;
-    if (profil.utstyr) BILDE.bruker.utstyr = profil.utstyr;
-    if (profil.tid) BILDE.bruker.min_per_okt = profil.tid;
+    _brukProfilPåBILDE(profil);
   }
+}
+
+function _brukProfilPåBILDE(profil) {
+  BILDE.bruker.navn = profil.navn || BILDE.bruker.navn;
+  BILDE.bruker.alder = profil.alder || BILDE.bruker.alder;
+  BILDE.bruker.kjonn = profil.kjonn || BILDE.bruker.kjonn;
+  BILDE.bruker.vekt_kg = profil.vekt || hentVekt();
+  BILDE.bruker.hoyde_cm = profil.hoyde || BILDE.bruker.hoyde_cm;
+  BILDE.bruker.niva_egenvurdering = profil.niva || BILDE.bruker.niva_egenvurdering;
+  BILDE.bruker.okter_per_uke = profil.dager || BILDE.bruker.okter_per_uke;
+  BILDE.bruker.minutter_per_okt = profil.tid || BILDE.bruker.minutter_per_okt;
+  if (profil.utstyr) BILDE.bruker.utstyr = profil.utstyr;
+  // mal: oversett første valgte mål til backend-format, send alle som mal_alle
+  const malArr = Array.isArray(profil.mal) ? profil.mal : [profil.mal].filter(Boolean);
+  BILDE.bruker.mal = MAL_MAP[malArr[0]] || malArr[0] || BILDE.bruker.mal;
+  BILDE.bruker.mal_alle = malArr.map(m => MAL_MAP[m] || m);
 }
 
 function visTost(tekst) {
