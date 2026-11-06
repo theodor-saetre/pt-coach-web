@@ -385,6 +385,8 @@ body {
   text-align: left; cursor: pointer; width: 100%;
 }
 .onb-mål-kort.selected { border-color: var(--accent); background: var(--accent-soft); }
+.onb-hake { color: var(--accent); font-weight: 700; opacity: 0; transition: opacity .15s; flex-shrink: 0; }
+.onb-mål-kort.selected .onb-hake { opacity: 1; }
 .onb-nivå-kort {
   display: flex; align-items: center; gap: 14px; padding: 12px 16px;
   border-radius: 12px; border: 1.5px solid var(--border-mid);
@@ -475,12 +477,14 @@ body {
 <div id="onboarding" style="display:none;position:fixed;inset:0;z-index:999;background:var(--bg);flex-direction:column;overflow-y:auto">
 
   <!-- Progress -->
-  <div style="padding:env(safe-area-inset-top,16px) 24px 0;padding-top:max(env(safe-area-inset-top,0px),20px)">
-    <div style="display:flex;gap:6px;margin-bottom:32px">
+  <div style="padding:max(env(safe-area-inset-top,0px),20px) 24px 0;flex-shrink:0">
+    <div style="display:flex;gap:5px;margin-bottom:28px">
       <div class="onb-dot active" id="onb-dot-1"></div>
       <div class="onb-dot" id="onb-dot-2"></div>
       <div class="onb-dot" id="onb-dot-3"></div>
       <div class="onb-dot" id="onb-dot-4"></div>
+      <div class="onb-dot" id="onb-dot-5"></div>
+      <div class="onb-dot" id="onb-dot-6"></div>
     </div>
   </div>
 
@@ -488,22 +492,18 @@ body {
   <div id="onb-steg-1" class="onb-steg">
     <div style="font-size:36px;margin-bottom:12px">👋</div>
     <h1 class="onb-tittel">Velkommen!</h1>
-    <p class="onb-sub">La oss sette opp appen for deg.</p>
+    <p class="onb-sub">Ta deg 2 minutter — vi lager en plan som passer deg.</p>
     <div class="onb-felt">
-      <label class="onb-label">Hva heter du?</label>
+      <label class="onb-label">Fornavn</label>
       <input id="onb-navn" class="onb-input" type="text" placeholder="Ditt navn" autocomplete="given-name">
-    </div>
-    <div class="onb-felt">
-      <label class="onb-label">E-post <span style="color:var(--fg-muted);font-weight:400">(for senere innlogging)</span></label>
-      <input id="onb-email" class="onb-input" type="email" placeholder="deg@eksempel.no" autocomplete="email" inputmode="email">
     </div>
   </div>
 
   <!-- Steg 2: Kropp -->
   <div id="onb-steg-2" class="onb-steg" style="display:none">
     <div style="font-size:36px;margin-bottom:12px">📏</div>
-    <h1 class="onb-tittel">Litt om deg</h1>
-    <p class="onb-sub">Brukes til å beregne kalorier og plan.</p>
+    <h1 class="onb-tittel">Litt om kroppen din</h1>
+    <p class="onb-sub">Brukes til kalori- og planberegning.</p>
     <div style="display:flex;gap:12px">
       <div class="onb-felt" style="flex:1">
         <label class="onb-label">Alder</label>
@@ -520,58 +520,126 @@ body {
         </div>
       </div>
     </div>
-    <div class="onb-felt">
-      <label class="onb-label">Høyde</label>
-      <div class="onb-tal-rad">
-        <input id="onb-hoyde" class="onb-input" type="number" placeholder="175" min="100" max="250" inputmode="numeric">
-        <span class="onb-enhet">cm</span>
+    <div style="display:flex;gap:12px">
+      <div class="onb-felt" style="flex:1">
+        <label class="onb-label">Høyde</label>
+        <div class="onb-tal-rad">
+          <input id="onb-hoyde" class="onb-input" type="number" placeholder="175" min="100" max="250" inputmode="numeric">
+          <span class="onb-enhet">cm</span>
+        </div>
       </div>
-    </div>
-    <div class="onb-felt">
-      <label class="onb-label">Kjønn</label>
-      <div style="display:flex;gap:10px;margin-top:4px">
-        <button class="onb-chip selected" id="chip-mann" onclick="velgKjonn('mann')">Mann</button>
-        <button class="onb-chip" id="chip-kvinne" onclick="velgKjonn('kvinne')">Kvinne</button>
-        <button class="onb-chip" id="chip-annet" onclick="velgKjonn('annet')">Annet</button>
+      <div class="onb-felt" style="flex:1">
+        <label class="onb-label">Kjønn</label>
+        <div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap">
+          <button class="onb-chip selected" id="chip-mann" onclick="velgKjonn('mann')">Mann</button>
+          <button class="onb-chip" id="chip-kvinne" onclick="velgKjonn('kvinne')">Kvinne</button>
+          <button class="onb-chip" id="chip-annet" onclick="velgKjonn('annet')">Annet</button>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- Steg 3: Mål -->
+  <!-- Steg 3: Mål (flervalg) -->
   <div id="onb-steg-3" class="onb-steg" style="display:none">
     <div style="font-size:36px;margin-bottom:12px">🎯</div>
-    <h1 class="onb-tittel">Hva er målet ditt?</h1>
-    <p class="onb-sub">Planen tilpasses automatisk.</p>
+    <h1 class="onb-tittel">Hva er målene dine?</h1>
+    <p class="onb-sub">Velg gjerne flere — planen kombinerer dem.</p>
     <div style="display:flex;flex-direction:column;gap:10px;margin-top:8px">
-      <button class="onb-mål-kort" id="mal-muskler" onclick="velgMal('muskler')">
-        <span style="font-size:28px">💪</span>
-        <div><div style="font-weight:700">Bygge muskler</div><div style="font-size:12px;color:var(--fg-muted)">Styrketrening og progressiv overbelastning</div></div>
+      <button class="onb-mål-kort" id="mal-muskler" onclick="toggleMal('muskler')">
+        <span style="font-size:26px">💪</span>
+        <div style="flex:1"><div style="font-weight:700">Bygge muskler</div><div style="font-size:12px;color:var(--fg-muted)">Styrke og muskelmasse</div></div>
+        <span class="onb-hake" id="hake-muskler">✓</span>
       </button>
-      <button class="onb-mål-kort" id="mal-vekttap" onclick="velgMal('vekttap')">
-        <span style="font-size:28px">⚖️</span>
-        <div><div style="font-weight:700">Gå ned i vekt</div><div style="font-size:12px;color:var(--fg-muted)">Kaloriunderskudd og fettforbrenning</div></div>
+      <button class="onb-mål-kort" id="mal-kondis" onclick="toggleMal('kondis')">
+        <span style="font-size:26px">🏃</span>
+        <div style="flex:1"><div style="font-weight:700">Bedre kondis</div><div style="font-size:12px;color:var(--fg-muted)">Utholdenhet og hjerte/lunge</div></div>
+        <span class="onb-hake" id="hake-kondis">✓</span>
       </button>
-      <button class="onb-mål-kort" id="mal-kondis" onclick="velgMal('kondis')">
-        <span style="font-size:28px">🏃</span>
-        <div><div style="font-weight:700">Bedre kondis</div><div style="font-size:12px;color:var(--fg-muted)">Utholdenhet og energi</div></div>
+      <button class="onb-mål-kort" id="mal-vekttap" onclick="toggleMal('vekttap')">
+        <span style="font-size:26px">⚖️</span>
+        <div style="flex:1"><div style="font-weight:700">Gå ned i vekt</div><div style="font-size:12px;color:var(--fg-muted)">Fettforbrenning og kaloribalanse</div></div>
+        <span class="onb-hake" id="hake-vekttap">✓</span>
       </button>
-      <button class="onb-mål-kort" id="mal-helse" onclick="velgMal('helse')">
-        <span style="font-size:28px">❤️</span>
-        <div><div style="font-weight:700">Generell helse</div><div style="font-size:12px;color:var(--fg-muted)">Balanse, mobilitet og velvære</div></div>
+      <button class="onb-mål-kort" id="mal-helse" onclick="toggleMal('helse')">
+        <span style="font-size:26px">❤️</span>
+        <div style="flex:1"><div style="font-weight:700">Generell helse</div><div style="font-size:12px;color:var(--fg-muted)">Mobilitet, energi og velvære</div></div>
+        <span class="onb-hake" id="hake-helse">✓</span>
       </button>
     </div>
   </div>
 
-  <!-- Steg 4: Nivå og dager -->
+  <!-- Steg 4: Utstyr (flervalg) -->
   <div id="onb-steg-4" class="onb-steg" style="display:none">
     <div style="font-size:36px;margin-bottom:12px">🏋️</div>
-    <h1 class="onb-tittel">Din treningsbakgrunn</h1>
-    <p class="onb-sub">Hjelper oss lage riktig program.</p>
+    <h1 class="onb-tittel">Hva har du tilgang til?</h1>
+    <p class="onb-sub">Velg alt som gjelder — planen bruker det du har.</p>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-top:8px">
+      <button class="onb-mål-kort" id="uts-treningssenter" onclick="toggleUtstyr('treningssenter')">
+        <span style="font-size:26px">🏢</span>
+        <div style="flex:1"><div style="font-weight:700">Treningssenter</div><div style="font-size:12px;color:var(--fg-muted)">Frivekter, maskiner, kabel</div></div>
+        <span class="onb-hake" id="hake-uts-treningssenter">✓</span>
+      </button>
+      <button class="onb-mål-kort" id="uts-hjemme" onclick="toggleUtstyr('hjemme')">
+        <span style="font-size:26px">🏠</span>
+        <div style="flex:1"><div style="font-weight:700">Hjemme med utstyr</div><div style="font-size:12px;color:var(--fg-muted)">Manualer, stang, benk</div></div>
+        <span class="onb-hake" id="hake-uts-hjemme">✓</span>
+      </button>
+      <button class="onb-mål-kort" id="uts-kroppsvekt" onclick="toggleUtstyr('kroppsvekt')">
+        <span style="font-size:26px">🤸</span>
+        <div style="flex:1"><div style="font-weight:700">Kun kroppsvekt</div><div style="font-size:12px;color:var(--fg-muted)">Ingen utstyr nødvendig</div></div>
+        <span class="onb-hake" id="hake-uts-kroppsvekt">✓</span>
+      </button>
+      <button class="onb-mål-kort" id="uts-friluft" onclick="toggleUtstyr('friluft')">
+        <span style="font-size:26px">🌲</span>
+        <div style="flex:1"><div style="font-weight:700">Friluft / løping</div><div style="font-size:12px;color:var(--fg-muted)">Løping, sykling, utendørs</div></div>
+        <span class="onb-hake" id="hake-uts-friluft">✓</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Steg 5: Frekvens og tid -->
+  <div id="onb-steg-5" class="onb-steg" style="display:none">
+    <div style="font-size:36px;margin-bottom:12px">📅</div>
+    <h1 class="onb-tittel">Treningsvaner</h1>
+    <p class="onb-sub">Legger grunnlaget for ukeplanen din.</p>
+    <div class="onb-felt">
+      <label class="onb-label">Dager per uke: <strong id="onb-dager-vis">4</strong></label>
+      <input id="onb-dager" type="range" min="2" max="6" value="4" step="1"
+        oninput="document.getElementById('onb-dager-vis').textContent=this.value"
+        style="width:100%;margin-top:8px;accent-color:var(--accent)">
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--fg-muted);margin-top:2px">
+        <span>2</span><span>3</span><span>4</span><span>5</span><span>6</span>
+      </div>
+    </div>
+    <div class="onb-felt">
+      <label class="onb-label">Øktlengde</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
+        <button class="onb-chip" id="tid-30" onclick="velgTid(30)">30 min</button>
+        <button class="onb-chip" id="tid-45" onclick="velgTid(45)">45 min</button>
+        <button class="onb-chip selected" id="tid-60" onclick="velgTid(60)">60 min</button>
+        <button class="onb-chip" id="tid-90" onclick="velgTid(90)">75+ min</button>
+      </div>
+    </div>
+    <div class="onb-felt">
+      <label class="onb-label">Foretrukket tid (valgfritt)</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
+        <button class="onb-chip" id="tid-morgen" onclick="velgTidspunkt('morgen')">🌅 Morgen</button>
+        <button class="onb-chip" id="tid-ettermiddag" onclick="velgTidspunkt('ettermiddag')">☀️ Ettermiddag</button>
+        <button class="onb-chip" id="tid-kveld" onclick="velgTidspunkt('kveld')">🌙 Kveld</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Steg 6: Bakgrunn og begrensninger -->
+  <div id="onb-steg-6" class="onb-steg" style="display:none">
+    <div style="font-size:36px;margin-bottom:12px">🧠</div>
+    <h1 class="onb-tittel">Litt til...</h1>
+    <p class="onb-sub">Hjelper AI-en å treffe bedre fra dag én.</p>
     <div class="onb-felt">
       <label class="onb-label">Treningsnivå</label>
       <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
         <button class="onb-nivå-kort" id="niv-nybegynner" onclick="velgNiva('nybegynner')">
-          <span>🌱</span><div><div style="font-weight:600">Nybegynner</div><div style="font-size:12px;color:var(--fg-muted)">Trener av og til eller akkurat startet</div></div>
+          <span>🌱</span><div><div style="font-weight:600">Nybegynner</div><div style="font-size:12px;color:var(--fg-muted)">Akkurat startet eller trener av og til</div></div>
         </button>
         <button class="onb-nivå-kort" id="niv-middels" onclick="velgNiva('middels')">
           <span>🔥</span><div><div style="font-weight:600">Mellom</div><div style="font-size:12px;color:var(--fg-muted)">1–3 år med regelmessig trening</div></div>
@@ -582,18 +650,13 @@ body {
       </div>
     </div>
     <div class="onb-felt">
-      <label class="onb-label">Dager per uke: <strong id="onb-dager-vis">4</strong></label>
-      <input id="onb-dager" type="range" min="2" max="6" value="4" step="1"
-        oninput="document.getElementById('onb-dager-vis').textContent=this.value"
-        style="width:100%;margin-top:8px;accent-color:var(--accent)">
-      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--fg-muted);margin-top:2px">
-        <span>2</span><span>3</span><span>4</span><span>5</span><span>6</span>
-      </div>
+      <label class="onb-label">Skader eller begrensninger? <span style="color:var(--fg-muted);font-weight:400">(valgfritt)</span></label>
+      <input id="onb-skader" class="onb-input" type="text" placeholder="F.eks. knesmerter, skulder…">
     </div>
   </div>
 
   <!-- Navigasjon -->
-  <div style="padding:16px 24px;padding-bottom:max(env(safe-area-inset-bottom,0px),24px);display:flex;gap:12px;margin-top:auto">
+  <div style="padding:16px 24px;padding-bottom:max(env(safe-area-inset-bottom,0px),24px);display:flex;gap:12px;margin-top:auto;flex-shrink:0">
     <button id="onb-tilbake" class="btn btn-secondary" style="flex:1;display:none" onclick="onbTilbake()">← Tilbake</button>
     <button id="onb-neste" class="btn btn-primary" style="flex:2" onclick="onbNeste()">Neste →</button>
   </div>
@@ -1923,7 +1986,7 @@ async function syncDataFirestore() {
 // ONBOARDING
 // ══════════════════════════════════════
 let onbSteg = 1;
-let onbData = { kjonn: 'mann', mal: null, niva: null };
+let onbData = { kjonn: 'mann', mal: [], utstyr: [], tid: 60, tidspunkt: null, niva: null, skader: '' };
 
 function visOnboarding() {
   document.getElementById('onboarding').style.display = 'flex';
@@ -1932,13 +1995,14 @@ function visOnboarding() {
 }
 
 function onbGåTilSteg(n) {
-  for (let i = 1; i <= 4; i++) {
-    document.getElementById('onb-steg-' + i).style.display = i === n ? 'block' : 'none';
+  for (let i = 1; i <= 6; i++) {
+    const steg = document.getElementById('onb-steg-' + i);
+    if (steg) steg.style.display = i === n ? 'block' : 'none';
     const dot = document.getElementById('onb-dot-' + i);
     if (dot) dot.classList.toggle('active', i <= n);
   }
   document.getElementById('onb-tilbake').style.display = n === 1 ? 'none' : '';
-  document.getElementById('onb-neste').textContent = n === 4 ? 'Start appen 🚀' : 'Neste →';
+  document.getElementById('onb-neste').textContent = n === 6 ? 'Start appen 🚀' : 'Neste →';
   onbSteg = n;
 }
 
@@ -1946,10 +2010,43 @@ function velgKjonn(k) {
   onbData.kjonn = k;
   ['mann','kvinne','annet'].forEach(x => document.getElementById('chip-'+x)?.classList.toggle('selected', x === k));
 }
-function velgMal(m) {
-  onbData.mal = m;
-  ['muskler','vekttap','kondis','helse'].forEach(x => document.getElementById('mal-'+x)?.classList.toggle('selected', x === m));
+
+function toggleMal(m) {
+  const idx = onbData.mal.indexOf(m);
+  if (idx >= 0) onbData.mal.splice(idx, 1);
+  else onbData.mal.push(m);
+  ['muskler','kondis','vekttap','helse'].forEach(x => {
+    const el = document.getElementById('mal-'+x);
+    const hake = document.getElementById('hake-'+x);
+    const sel = onbData.mal.includes(x);
+    el?.classList.toggle('selected', sel);
+    if (hake) hake.style.opacity = sel ? '1' : '0';
+  });
 }
+
+function toggleUtstyr(u) {
+  const idx = onbData.utstyr.indexOf(u);
+  if (idx >= 0) onbData.utstyr.splice(idx, 1);
+  else onbData.utstyr.push(u);
+  ['treningssenter','hjemme','kroppsvekt','friluft'].forEach(x => {
+    const el = document.getElementById('uts-'+x);
+    const hake = document.getElementById('hake-uts-'+x);
+    const sel = onbData.utstyr.includes(x);
+    el?.classList.toggle('selected', sel);
+    if (hake) hake.style.opacity = sel ? '1' : '0';
+  });
+}
+
+function velgTid(t) {
+  onbData.tid = t;
+  [30,45,60,90].forEach(x => document.getElementById('tid-'+x)?.classList.toggle('selected', x === t));
+}
+
+function velgTidspunkt(tp) {
+  onbData.tidspunkt = onbData.tidspunkt === tp ? null : tp;
+  ['morgen','ettermiddag','kveld'].forEach(x => document.getElementById('tid-'+x)?.classList.toggle('selected', x === onbData.tidspunkt));
+}
+
 function velgNiva(n) {
   onbData.niva = n;
   ['nybegynner','middels','avansert'].forEach(x => document.getElementById('niv-'+x)?.classList.toggle('selected', x === n));
@@ -1960,7 +2057,6 @@ function onbNeste() {
     const navn = document.getElementById('onb-navn').value.trim();
     if (!navn) { visTost('Skriv inn navn'); return; }
     onbData.navn = navn;
-    onbData.email = document.getElementById('onb-email').value.trim();
   } else if (onbSteg === 2) {
     const alder = parseInt(document.getElementById('onb-alder').value);
     const vekt = parseFloat(document.getElementById('onb-vekt').value);
@@ -1968,10 +2064,14 @@ function onbNeste() {
     if (!alder || !vekt || !hoyde) { visTost('Fyll inn alle felt'); return; }
     onbData.alder = alder; onbData.vekt = vekt; onbData.hoyde = hoyde;
   } else if (onbSteg === 3) {
-    if (!onbData.mal) { visTost('Velg et mål'); return; }
+    if (onbData.mal.length === 0) { visTost('Velg minst ett mål'); return; }
   } else if (onbSteg === 4) {
-    if (!onbData.niva) { visTost('Velg treningsnivå'); return; }
+    if (onbData.utstyr.length === 0) { visTost('Velg minst ett alternativ'); return; }
+  } else if (onbSteg === 5) {
     onbData.dager = parseInt(document.getElementById('onb-dager').value);
+  } else if (onbSteg === 6) {
+    if (!onbData.niva) { visTost('Velg treningsnivå'); return; }
+    onbData.skader = document.getElementById('onb-skader').value.trim();
     onbFullfor();
     return;
   }
@@ -1984,10 +2084,15 @@ function onbTilbake() {
 
 function onbFullfor() {
   const profil = {
-    navn: onbData.navn, email: onbData.email || '',
+    navn: onbData.navn,
     alder: onbData.alder, vekt: onbData.vekt, hoyde: onbData.hoyde,
-    kjonn: onbData.kjonn, mal: onbData.mal,
-    niva: onbData.niva, dager: onbData.dager,
+    kjonn: onbData.kjonn,
+    mal: onbData.mal,         // array, e.g. ['muskler','kondis']
+    utstyr: onbData.utstyr,   // array, e.g. ['treningssenter']
+    tid: onbData.tid,         // minutes per session
+    tidspunkt: onbData.tidspunkt || null,
+    niva: onbData.niva, dager: onbData.dager || 4,
+    skader: onbData.skader || '',
     onboarded: true, registrert: iDag()
   };
   lsSave('ptc_profil', profil);
@@ -2001,8 +2106,10 @@ function onbFullfor() {
   BILDE.bruker.kjonn = profil.kjonn;
   BILDE.bruker.vekt_kg = profil.vekt;
   BILDE.bruker.hoyde_cm = profil.hoyde;
-  BILDE.bruker.mal = profil.mal;
+  BILDE.bruker.mal = Array.isArray(profil.mal) ? profil.mal[0] : profil.mal;
   BILDE.bruker.niva_egenvurdering = profil.niva;
+  if (profil.utstyr) BILDE.bruker.utstyr = profil.utstyr;
+  if (profil.tid) BILDE.bruker.min_per_okt = profil.tid;
 
   document.getElementById('onboarding').style.display = 'none';
   document.querySelector('.app-shell')?.classList.remove('hidden');
@@ -2027,8 +2134,10 @@ function sjekkOnboarding() {
     BILDE.bruker.kjonn = profil.kjonn || BILDE.bruker.kjonn;
     BILDE.bruker.vekt_kg = profil.vekt || hentVekt();
     BILDE.bruker.hoyde_cm = profil.hoyde || BILDE.bruker.hoyde_cm;
-    BILDE.bruker.mal = profil.mal || BILDE.bruker.mal;
+    BILDE.bruker.mal = (Array.isArray(profil.mal) ? profil.mal[0] : profil.mal) || BILDE.bruker.mal;
     BILDE.bruker.niva_egenvurdering = profil.niva || BILDE.bruker.niva_egenvurdering;
+    if (profil.utstyr) BILDE.bruker.utstyr = profil.utstyr;
+    if (profil.tid) BILDE.bruker.min_per_okt = profil.tid;
   }
 }
 
