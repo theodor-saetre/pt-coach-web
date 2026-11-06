@@ -710,7 +710,7 @@ body {
 
   <div class="section" style="gap:14px;">
     <div class="hero-banner">
-      <div class="hero-greeting">Hei, Theod 👋</div>
+      <div class="hero-greeting" id="hero-greeting">Hei 👋</div>
       <div class="hero-title" id="hero-okt-tittel">Henter treningsplan…</div>
       <div class="hero-sub" id="hero-okt-sub">Kobler til AI…</div>
     </div>
@@ -875,7 +875,7 @@ body {
         <div class="stat-card-label">Økter denne uka</div>
       </div>
       <div class="stat-card">
-        <div class="stat-card-val">2900</div>
+        <div class="stat-card-val" id="profil-kcal-mål">2900</div>
         <div class="stat-card-label">Kcal-mål/dag</div>
       </div>
     </div>
@@ -1215,7 +1215,22 @@ fbAuth.onAuthStateChanged(async user => {
 // CONFIG
 // ══════════════════════════════════════
 const BACKEND = 'https://pt-coach-backend-pw8d.onrender.com';
-const KCAL_MÅL = 2900;
+let KCAL_MÅL = 2900;
+
+function beregnKcalMål(profil) {
+  if (!profil?.vekt || !profil?.hoyde || !profil?.alder) return 2500;
+  // Mifflin-St Jeor BMR
+  const bmr = profil.kjonn === 'kvinne'
+    ? 10 * profil.vekt + 6.25 * profil.hoyde - 5 * profil.alder - 161
+    : 10 * profil.vekt + 6.25 * profil.hoyde - 5 * profil.alder + 5;
+  const dager = profil.dager || 4;
+  const faktor = dager <= 2 ? 1.375 : dager <= 4 ? 1.55 : 1.725;
+  const tdee = Math.round(bmr * faktor);
+  const malArr = Array.isArray(profil.mal) ? profil.mal : (profil.mal ? [profil.mal] : []);
+  if (malArr.includes('vekttap')) return tdee - 400;
+  if (malArr.includes('muskler')) return tdee + 200;
+  return tdee;
+}
 
 const BILDE = {
   bruker: {
@@ -1850,6 +1865,8 @@ function oppdaterMatVisning() {
   const forbrentAkt = hentAktiviteter().reduce((s,a) => s + a.kcal, 0);
   document.getElementById('cal-spist').textContent = Math.round(totalKcal);
   document.getElementById('stat-kcal-forbruk').textContent = Math.round(totalKcal);
+  const calMålEl = document.getElementById('cal-mål');
+  if (calMålEl) calMålEl.textContent = KCAL_MÅL;
   const igjen = KCAL_MÅL + forbrentAkt - Math.round(totalKcal);
   document.getElementById('cal-igjen-tekst').textContent = (igjen >= 0 ? igjen + ' kcal igjen' : Math.abs(igjen) + ' kcal over mål');
   const forbEl = document.getElementById('cal-forbrent-tekst');
@@ -2543,6 +2560,13 @@ function sjekkOnboarding() {
 }
 
 function _brukProfilPåBILDE(profil) {
+  // Oppdater hilsen og kcal-mål
+  const greeting = document.getElementById('hero-greeting');
+  if (greeting && profil.navn) greeting.textContent = 'Hei, ' + profil.navn.split(' ')[0] + ' 👋';
+  KCAL_MÅL = beregnKcalMål(profil);
+  const kcalEl = document.getElementById('profil-kcal-mål');
+  if (kcalEl) kcalEl.textContent = KCAL_MÅL;
+
   BILDE.bruker.navn = profil.navn || BILDE.bruker.navn;
   BILDE.bruker.alder = profil.alder || BILDE.bruker.alder;
   BILDE.bruker.kjonn = profil.kjonn || BILDE.bruker.kjonn;
