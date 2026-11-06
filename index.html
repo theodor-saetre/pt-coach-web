@@ -394,6 +394,12 @@ body {
   text-align: left; cursor: pointer; width: 100%; font-size: 15px;
 }
 .onb-nivå-kort.selected { border-color: var(--accent); background: var(--accent-soft); }
+.onb-pref-chip {
+  padding: 8px 14px; border-radius: 20px; border: 1.5px solid var(--border-mid);
+  background: var(--surface2); color: var(--fg); font-size: 13px; cursor: pointer;
+  transition: all .15s;
+}
+.onb-pref-chip.selected { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 600; }
 .onb-dot { flex: 1; height: 4px; border-radius: 2px; background: var(--border-mid); transition: background .2s; }
 .onb-dot.active { background: var(--accent); }
 .app-shell.hidden { display: none; }
@@ -576,8 +582,12 @@ body {
   <div id="onb-steg-4" class="onb-steg" style="display:none">
     <div style="font-size:36px;margin-bottom:12px">🏋️</div>
     <h1 class="onb-tittel">Hva har du tilgang til?</h1>
-    <p class="onb-sub">Velg alt som gjelder — planen bruker det du har.</p>
+    <p class="onb-sub">Kroppsvektøvelser er alltid inkludert. Huk av det som gjelder i tillegg.</p>
     <div style="display:flex;flex-direction:column;gap:10px;margin-top:8px">
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:12px;background:var(--accent-soft);border:1.5px solid var(--accent);font-size:13px;color:var(--fg-muted)">
+        <span style="font-size:22px">🤸</span>
+        <span><strong style="color:var(--fg)">Kroppsvekt</strong> — alltid tilgjengelig for alle</span>
+      </div>
       <button class="onb-mål-kort" id="uts-treningssenter" onclick="toggleUtstyr('treningssenter')">
         <span style="font-size:26px">🏢</span>
         <div style="flex:1"><div style="font-weight:700">Treningssenter</div><div style="font-size:12px;color:var(--fg-muted)">Frivekter, maskiner, kabel</div></div>
@@ -585,18 +595,18 @@ body {
       </button>
       <button class="onb-mål-kort" id="uts-hjemme" onclick="toggleUtstyr('hjemme')">
         <span style="font-size:26px">🏠</span>
-        <div style="flex:1"><div style="font-weight:700">Hjemme med utstyr</div><div style="font-size:12px;color:var(--fg-muted)">Manualer, stang, benk</div></div>
+        <div style="flex:1"><div style="font-weight:700">Hjemmeutstyr</div><div style="font-size:12px;color:var(--fg-muted)">Manualer, strikk, benk, stang</div></div>
         <span class="onb-hake" id="hake-uts-hjemme">✓</span>
-      </button>
-      <button class="onb-mål-kort" id="uts-kroppsvekt" onclick="toggleUtstyr('kroppsvekt')">
-        <span style="font-size:26px">🤸</span>
-        <div style="flex:1"><div style="font-weight:700">Kun kroppsvekt</div><div style="font-size:12px;color:var(--fg-muted)">Ingen utstyr nødvendig</div></div>
-        <span class="onb-hake" id="hake-uts-kroppsvekt">✓</span>
       </button>
       <button class="onb-mål-kort" id="uts-friluft" onclick="toggleUtstyr('friluft')">
         <span style="font-size:26px">🌲</span>
-        <div style="flex:1"><div style="font-weight:700">Friluft / løping</div><div style="font-size:12px;color:var(--fg-muted)">Løping, sykling, utendørs</div></div>
+        <div style="flex:1"><div style="font-weight:700">Friluft / løping</div><div style="font-size:12px;color:var(--fg-muted)">Løping, sykling, turterreng</div></div>
         <span class="onb-hake" id="hake-uts-friluft">✓</span>
+      </button>
+      <button class="onb-mål-kort" id="uts-basseng" onclick="toggleUtstyr('basseng')">
+        <span style="font-size:26px">🏊</span>
+        <div style="flex:1"><div style="font-weight:700">Basseng / svømming</div><div style="font-size:12px;color:var(--fg-muted)">Svømmehall eller utendørs</div></div>
+        <span class="onb-hake" id="hake-uts-basseng">✓</span>
       </button>
     </div>
   </div>
@@ -639,6 +649,18 @@ body {
     <div style="font-size:36px;margin-bottom:12px">🧠</div>
     <h1 class="onb-tittel">Litt til...</h1>
     <p class="onb-sub">Hjelper AI-en å treffe bedre fra dag én.</p>
+    <div class="onb-felt">
+      <label class="onb-label">Hva liker du å trene? <span style="color:var(--fg-muted);font-weight:400">(valgfritt — flervalg)</span></label>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px" id="pref-chips">
+        <button class="onb-pref-chip" id="pref-styrke" onclick="togglePref('styrke')">🏋️ Styrke</button>
+        <button class="onb-pref-chip" id="pref-løping" onclick="togglePref('løping')">🏃 Løping</button>
+        <button class="onb-pref-chip" id="pref-sykling" onclick="togglePref('sykling')">🚴 Sykling</button>
+        <button class="onb-pref-chip" id="pref-hiit" onclick="togglePref('hiit')">⚡ HIIT</button>
+        <button class="onb-pref-chip" id="pref-yoga" onclick="togglePref('yoga')">🧘 Yoga/mobilitet</button>
+        <button class="onb-pref-chip" id="pref-svømming" onclick="togglePref('svømming')">🏊 Svømming</button>
+        <button class="onb-pref-chip" id="pref-friluft" onclick="togglePref('friluft')">🌲 Turer/friluft</button>
+      </div>
+    </div>
     <div class="onb-felt">
       <label class="onb-label">Treningsnivå</label>
       <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
@@ -2077,7 +2099,7 @@ async function sendChatMelding() {
 // ONBOARDING
 // ══════════════════════════════════════
 let onbSteg = 1;
-let onbData = { kjonn: 'mann', mal: [], utstyr: [], tid: 60, tidspunkt: null, niva: null, skader: '' };
+let onbData = { kjonn: 'mann', mal: [], utstyr: [], tid: 60, tidspunkt: null, niva: null, skader: '', treningspreferanser: [], ekstra_info: '' };
 
 function visOnboarding() {
   document.getElementById('onboarding').style.display = 'flex';
@@ -2119,12 +2141,21 @@ function toggleUtstyr(u) {
   const idx = onbData.utstyr.indexOf(u);
   if (idx >= 0) onbData.utstyr.splice(idx, 1);
   else onbData.utstyr.push(u);
-  ['treningssenter','hjemme','kroppsvekt','friluft'].forEach(x => {
+  ['treningssenter','hjemme','friluft','basseng'].forEach(x => {
     const el = document.getElementById('uts-'+x);
     const hake = document.getElementById('hake-uts-'+x);
     const sel = onbData.utstyr.includes(x);
     el?.classList.toggle('selected', sel);
     if (hake) hake.style.opacity = sel ? '1' : '0';
+  });
+}
+
+function togglePref(p) {
+  const idx = onbData.treningspreferanser.indexOf(p);
+  if (idx >= 0) onbData.treningspreferanser.splice(idx, 1);
+  else onbData.treningspreferanser.push(p);
+  ['styrke','løping','sykling','hiit','yoga','svømming','friluft'].forEach(x => {
+    document.getElementById('pref-'+x)?.classList.toggle('selected', onbData.treningspreferanser.includes(x));
   });
 }
 
@@ -2186,6 +2217,7 @@ function onbFullfor() {
     niva: onbData.niva, dager: onbData.dager || 4,
     skader: onbData.skader || '',
     ekstra_info: onbData.ekstra_info || '',
+    treningspreferanser: onbData.treningspreferanser || [],
     onboarded: true, registrert: iDag()
   };
   lsSave('ptc_profil', profil);
@@ -2242,6 +2274,7 @@ function _brukProfilPåBILDE(profil) {
   BILDE.bruker.mal_alle = malArr.map(m => MAL_MAP[m] || m);
   if (profil.skader) BILDE.bruker.skader = profil.skader;
   if (profil.ekstra_info) BILDE.bruker.ekstra_info = profil.ekstra_info;
+  if (profil.treningspreferanser?.length) BILDE.bruker.treningspreferanser = profil.treningspreferanser;
 }
 
 function visTost(tekst) {
