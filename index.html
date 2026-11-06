@@ -851,6 +851,7 @@ body {
 <div id="screen-profil" class="screen">
   <div class="top-header">
     <div class="header-title">Min profil</div>
+    <button class="btn btn-secondary btn-sm" onclick="åpneProfilEditor()">Rediger</button>
   </div>
 
   <div class="profil-top">
@@ -899,23 +900,27 @@ body {
       <button class="btn btn-secondary btn-sm" style="margin-left:auto;white-space:nowrap" onclick="garminKoble()">Koble til</button>
     </div>
 
-    <div class="section-label">Innstillinger</div>
+    <div class="section-label">Min info</div>
     <div class="card">
       <div class="settings-row">
         <span class="settings-label">Mål</span>
-        <span class="settings-val tag tag-blue">Styrke</span>
+        <span class="settings-val" id="profil-info-mal">—</span>
       </div>
       <div class="settings-row">
         <span class="settings-label">Treningsnivå</span>
-        <span class="settings-val">Middels</span>
-      </div>
-      <div class="settings-row">
-        <span class="settings-label">Økter per uke</span>
-        <span class="settings-val">4</span>
+        <span class="settings-val" id="profil-info-niva">—</span>
       </div>
       <div class="settings-row">
         <span class="settings-label">Utstyr</span>
-        <span class="settings-val">Treningssenter</span>
+        <span class="settings-val" id="profil-info-utstyr">—</span>
+      </div>
+      <div class="settings-row">
+        <span class="settings-label">Preferanser</span>
+        <span class="settings-val" id="profil-info-pref">—</span>
+      </div>
+      <div class="settings-row">
+        <span class="settings-label">Dager/uke</span>
+        <span class="settings-val" id="profil-info-dager">—</span>
       </div>
       <div class="settings-row" style="cursor:pointer" onclick="oppdaterVekt()">
         <span class="settings-label">Nåvekt</span>
@@ -923,6 +928,7 @@ body {
       </div>
     </div>
 
+    <button class="btn btn-primary" style="width:100%;margin-top:8px" onclick="åpneProfilEditor()">✏️ Rediger profil</button>
     <button class="btn btn-secondary" style="width:100%;margin-top:8px;color:var(--danger,#ef4444)" onclick="loggUt()">Logg ut</button>
   </div>
 </div>
@@ -958,6 +964,153 @@ body {
     <div style="display:flex;gap:10px;">
       <button class="btn btn-secondary" style="flex:1" onclick="lukkVektModal()">Avbryt</button>
       <button class="btn btn-primary" style="flex:1" onclick="lagreVekt()">Lagre</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ PROFIL EDITOR ═══════════════════ -->
+<div class="amount-modal" id="profil-editor-modal" onclick="if(event.target===this)lukkProfilEditor()">
+  <div class="amount-sheet" onclick="event.stopPropagation()" style="max-height:92vh;overflow-y:auto;padding-bottom:max(env(safe-area-inset-bottom,0px),24px)">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div class="amount-title" style="margin:0">Rediger profil</div>
+      <button onclick="lukkProfilEditor()" style="border:none;background:none;font-size:22px;color:var(--fg-muted);cursor:pointer;padding:4px">×</button>
+    </div>
+
+    <!-- Navn -->
+    <div class="onb-felt">
+      <label class="onb-label">Navn</label>
+      <input id="ed-navn" class="onb-input" type="text" placeholder="Ditt navn">
+    </div>
+
+    <!-- Kropp -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+      <div class="onb-felt">
+        <label class="onb-label">Alder</label>
+        <input id="ed-alder" class="onb-input" type="number" inputmode="numeric" min="10" max="99" placeholder="30">
+      </div>
+      <div class="onb-felt">
+        <label class="onb-label">Vekt (kg)</label>
+        <input id="ed-vekt" class="onb-input" type="number" inputmode="decimal" step="0.5" min="30" max="300" placeholder="70">
+      </div>
+      <div class="onb-felt">
+        <label class="onb-label">Høyde (cm)</label>
+        <input id="ed-hoyde" class="onb-input" type="number" inputmode="numeric" min="100" max="250" placeholder="175">
+      </div>
+    </div>
+
+    <!-- Kjønn -->
+    <div class="onb-felt">
+      <label class="onb-label">Kjønn</label>
+      <div style="display:flex;gap:8px;margin-top:6px">
+        <button class="onb-chip" id="ed-chip-mann" onclick="edVelgKjonn('mann')">Mann</button>
+        <button class="onb-chip" id="ed-chip-kvinne" onclick="edVelgKjonn('kvinne')">Kvinne</button>
+        <button class="onb-chip" id="ed-chip-annet" onclick="edVelgKjonn('annet')">Annet</button>
+      </div>
+    </div>
+
+    <!-- Mål -->
+    <div class="onb-felt">
+      <label class="onb-label">Mål (flervalg)</label>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:6px">
+        <button class="onb-mål-kort" id="ed-mal-muskler" onclick="edToggleMal('muskler')">
+          <span style="font-size:20px">💪</span><div style="flex:1">Bygge muskler</div><span class="onb-hake" id="ed-hake-muskler">✓</span>
+        </button>
+        <button class="onb-mål-kort" id="ed-mal-kondis" onclick="edToggleMal('kondis')">
+          <span style="font-size:20px">🏃</span><div style="flex:1">Bedre kondis</div><span class="onb-hake" id="ed-hake-kondis">✓</span>
+        </button>
+        <button class="onb-mål-kort" id="ed-mal-vekttap" onclick="edToggleMal('vekttap')">
+          <span style="font-size:20px">⚖️</span><div style="flex:1">Gå ned i vekt</div><span class="onb-hake" id="ed-hake-vekttap">✓</span>
+        </button>
+        <button class="onb-mål-kort" id="ed-mal-helse" onclick="edToggleMal('helse')">
+          <span style="font-size:20px">❤️</span><div style="flex:1">Generell helse</div><span class="onb-hake" id="ed-hake-helse">✓</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Utstyr -->
+    <div class="onb-felt">
+      <label class="onb-label">Utstyr (kroppsvekt alltid inkludert)</label>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:6px">
+        <button class="onb-mål-kort" id="ed-uts-treningssenter" onclick="edToggleUtstyr('treningssenter')">
+          <span style="font-size:20px">🏢</span><div style="flex:1">Treningssenter</div><span class="onb-hake" id="ed-hake-uts-treningssenter">✓</span>
+        </button>
+        <button class="onb-mål-kort" id="ed-uts-hjemme" onclick="edToggleUtstyr('hjemme')">
+          <span style="font-size:20px">🏠</span><div style="flex:1">Hjemmeutstyr</div><span class="onb-hake" id="ed-hake-uts-hjemme">✓</span>
+        </button>
+        <button class="onb-mål-kort" id="ed-uts-friluft" onclick="edToggleUtstyr('friluft')">
+          <span style="font-size:20px">🌲</span><div style="flex:1">Friluft / løping</div><span class="onb-hake" id="ed-hake-uts-friluft">✓</span>
+        </button>
+        <button class="onb-mål-kort" id="ed-uts-basseng" onclick="edToggleUtstyr('basseng')">
+          <span style="font-size:20px">🏊</span><div style="flex:1">Basseng / svømming</div><span class="onb-hake" id="ed-hake-uts-basseng">✓</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Treningspreferanser -->
+    <div class="onb-felt">
+      <label class="onb-label">Hva liker du å trene?</label>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px">
+        <button class="onb-pref-chip" id="ed-pref-styrke" onclick="edTogglePref('styrke')">🏋️ Styrke</button>
+        <button class="onb-pref-chip" id="ed-pref-løping" onclick="edTogglePref('løping')">🏃 Løping</button>
+        <button class="onb-pref-chip" id="ed-pref-sykling" onclick="edTogglePref('sykling')">🚴 Sykling</button>
+        <button class="onb-pref-chip" id="ed-pref-hiit" onclick="edTogglePref('hiit')">⚡ HIIT</button>
+        <button class="onb-pref-chip" id="ed-pref-yoga" onclick="edTogglePref('yoga')">🧘 Yoga/mobilitet</button>
+        <button class="onb-pref-chip" id="ed-pref-svømming" onclick="edTogglePref('svømming')">🏊 Svømming</button>
+        <button class="onb-pref-chip" id="ed-pref-friluft" onclick="edTogglePref('friluft')">🌲 Turer/friluft</button>
+      </div>
+    </div>
+
+    <!-- Dager og tid -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="onb-felt">
+        <label class="onb-label">Dager/uke</label>
+        <input id="ed-dager" class="onb-input" type="number" inputmode="numeric" min="1" max="7" placeholder="4">
+      </div>
+      <div class="onb-felt">
+        <label class="onb-label">Min/økt</label>
+        <input id="ed-tid" class="onb-input" type="number" inputmode="numeric" min="20" max="180" placeholder="60">
+      </div>
+    </div>
+
+    <!-- Tidspunkt -->
+    <div class="onb-felt">
+      <label class="onb-label">Foretrukket tidspunkt <span style="color:var(--fg-muted);font-weight:400">(valgfritt)</span></label>
+      <div style="display:flex;gap:8px;margin-top:6px">
+        <button class="onb-chip" id="ed-tid-morgen" onclick="edVelgTidspunkt('morgen')">🌅 Morgen</button>
+        <button class="onb-chip" id="ed-tid-ettermiddag" onclick="edVelgTidspunkt('ettermiddag')">☀️ Ettermiddag</button>
+        <button class="onb-chip" id="ed-tid-kveld" onclick="edVelgTidspunkt('kveld')">🌙 Kveld</button>
+      </div>
+    </div>
+
+    <!-- Nivå -->
+    <div class="onb-felt">
+      <label class="onb-label">Treningsnivå</label>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:6px">
+        <button class="onb-nivå-kort" id="ed-niv-nybegynner" onclick="edVelgNiva('nybegynner')">
+          <span>🌱</span><div><div style="font-weight:600">Nybegynner</div><div style="font-size:12px;color:var(--fg-muted)">Akkurat startet eller trener av og til</div></div>
+        </button>
+        <button class="onb-nivå-kort" id="ed-niv-middels" onclick="edVelgNiva('middels')">
+          <span>🔥</span><div><div style="font-weight:600">Mellom</div><div style="font-size:12px;color:var(--fg-muted)">1–3 år med regelmessig trening</div></div>
+        </button>
+        <button class="onb-nivå-kort" id="ed-niv-avansert" onclick="edVelgNiva('avansert')">
+          <span>⚡</span><div><div style="font-weight:600">Avansert</div><div style="font-size:12px;color:var(--fg-muted)">3+ år, kjenner programmering godt</div></div>
+        </button>
+      </div>
+    </div>
+
+    <!-- Skader og ekstra -->
+    <div class="onb-felt">
+      <label class="onb-label">Skader eller begrensninger <span style="color:var(--fg-muted);font-weight:400">(valgfritt)</span></label>
+      <input id="ed-skader" class="onb-input" type="text" placeholder="F.eks. knesmerter, skulder…">
+    </div>
+    <div class="onb-felt">
+      <label class="onb-label">Noe AI-en bør vite om deg? <span style="color:var(--fg-muted);font-weight:400">(valgfritt)</span></label>
+      <textarea id="ed-ekstra" class="onb-input" rows="3" placeholder="F.eks. «Vil løpe maraton til sommeren»…" style="resize:none;line-height:1.4"></textarea>
+    </div>
+
+    <div style="display:flex;gap:10px;margin-top:4px">
+      <button class="btn btn-secondary" style="flex:1" onclick="lukkProfilEditor()">Avbryt</button>
+      <button class="btn btn-primary" style="flex:2" onclick="lagreProfilEndring()">Lagre endringer</button>
     </div>
   </div>
 </div>
@@ -1916,8 +2069,19 @@ function oppdaterProfilVisning() {
     const subEl = document.getElementById('profil-sub');
     const avatarEl = document.getElementById('profil-avatar');
     if (navnEl) navnEl.textContent = profil.navn;
-    if (subEl) subEl.textContent = (profil.mal ? {muskler:'Bygge muskler',vekttap:'Gå ned i vekt',kondis:'Bedre kondis',helse:'Generell helse'}[profil.mal] : '') + (profil.niva ? ' · ' + profil.niva : '');
+    const malArr = Array.isArray(profil.mal) ? profil.mal : (profil.mal ? [profil.mal] : []);
+    const malNavn = {muskler:'Muskler',vekttap:'Vekttap',kondis:'Kondis',helse:'Helse'};
+    if (subEl) subEl.textContent = malArr.map(m => malNavn[m] || m).join(' · ') + (profil.niva ? ' · ' + profil.niva : '');
     if (avatarEl) avatarEl.textContent = profil.navn ? profil.navn[0].toUpperCase() : '👤';
+
+    const e = id => document.getElementById(id);
+    if (e('profil-info-mal')) e('profil-info-mal').textContent = malArr.map(m => malNavn[m] || m).join(', ') || '—';
+    if (e('profil-info-niva')) e('profil-info-niva').textContent = profil.niva || '—';
+    const utstyrArr = Array.isArray(profil.utstyr) ? profil.utstyr : [];
+    if (e('profil-info-utstyr')) e('profil-info-utstyr').textContent = ['kroppsvekt', ...utstyrArr].join(', ') || '—';
+    const prefArr = Array.isArray(profil.treningspreferanser) ? profil.treningspreferanser : [];
+    if (e('profil-info-pref')) e('profil-info-pref').textContent = prefArr.length ? prefArr.join(', ') : '—';
+    if (e('profil-info-dager')) e('profil-info-dager').textContent = (profil.dager || 4) + ' dager, ' + (profil.tid || 60) + ' min';
   }
   loggVektDag(vekt);
   setTimeout(tegnVektGraf, 50);
@@ -1930,6 +2094,126 @@ function oppdaterVekt() {
 }
 function lukkVektModal() {
   document.getElementById('vekt-modal').classList.remove('open');
+}
+
+// ══════════════════════════════════════
+// PROFIL EDITOR
+// ══════════════════════════════════════
+let edData = {};
+
+function åpneProfilEditor() {
+  const p = hentProfilFraLS() || {};
+  edData = {
+    kjonn: p.kjonn || 'mann',
+    mal: Array.isArray(p.mal) ? [...p.mal] : (p.mal ? [p.mal] : []),
+    utstyr: Array.isArray(p.utstyr) ? [...p.utstyr] : [],
+    treningspreferanser: Array.isArray(p.treningspreferanser) ? [...p.treningspreferanser] : [],
+    niva: p.niva || null,
+    tidspunkt: p.tidspunkt || null,
+  };
+
+  // Fyll inn enkeltfelt
+  document.getElementById('ed-navn').value = p.navn || '';
+  document.getElementById('ed-alder').value = p.alder || '';
+  document.getElementById('ed-vekt').value = p.vekt || hentVekt() || '';
+  document.getElementById('ed-hoyde').value = p.hoyde || '';
+  document.getElementById('ed-dager').value = p.dager || 4;
+  document.getElementById('ed-tid').value = p.tid || 60;
+  document.getElementById('ed-skader').value = p.skader || '';
+  document.getElementById('ed-ekstra').value = p.ekstra_info || '';
+
+  // Oppdater valg-UI
+  edOppdaterUI();
+  document.getElementById('profil-editor-modal').classList.add('open');
+}
+
+function lukkProfilEditor() {
+  document.getElementById('profil-editor-modal').classList.remove('open');
+}
+
+function edOppdaterUI() {
+  ['mann','kvinne','annet'].forEach(x =>
+    document.getElementById('ed-chip-'+x)?.classList.toggle('selected', x === edData.kjonn));
+  ['muskler','kondis','vekttap','helse'].forEach(x => {
+    const sel = edData.mal.includes(x);
+    document.getElementById('ed-mal-'+x)?.classList.toggle('selected', sel);
+    const hake = document.getElementById('ed-hake-'+x);
+    if (hake) hake.style.opacity = sel ? '1' : '0';
+  });
+  ['treningssenter','hjemme','friluft','basseng'].forEach(x => {
+    const sel = edData.utstyr.includes(x);
+    document.getElementById('ed-uts-'+x)?.classList.toggle('selected', sel);
+    const hake = document.getElementById('ed-hake-uts-'+x);
+    if (hake) hake.style.opacity = sel ? '1' : '0';
+  });
+  ['styrke','løping','sykling','hiit','yoga','svømming','friluft'].forEach(x =>
+    document.getElementById('ed-pref-'+x)?.classList.toggle('selected', edData.treningspreferanser.includes(x)));
+  ['nybegynner','middels','avansert'].forEach(x =>
+    document.getElementById('ed-niv-'+x)?.classList.toggle('selected', x === edData.niva));
+  ['morgen','ettermiddag','kveld'].forEach(x =>
+    document.getElementById('ed-tid-'+x)?.classList.toggle('selected', x === edData.tidspunkt));
+}
+
+function edVelgKjonn(k) { edData.kjonn = k; edOppdaterUI(); }
+function edVelgNiva(n) { edData.niva = n; edOppdaterUI(); }
+function edVelgTidspunkt(tp) { edData.tidspunkt = edData.tidspunkt === tp ? null : tp; edOppdaterUI(); }
+function edToggleMal(m) {
+  const idx = edData.mal.indexOf(m);
+  if (idx >= 0) edData.mal.splice(idx, 1); else edData.mal.push(m);
+  edOppdaterUI();
+}
+function edToggleUtstyr(u) {
+  const idx = edData.utstyr.indexOf(u);
+  if (idx >= 0) edData.utstyr.splice(idx, 1); else edData.utstyr.push(u);
+  edOppdaterUI();
+}
+function edTogglePref(p) {
+  const idx = edData.treningspreferanser.indexOf(p);
+  if (idx >= 0) edData.treningspreferanser.splice(idx, 1); else edData.treningspreferanser.push(p);
+  edOppdaterUI();
+}
+
+function lagreProfilEndring() {
+  const navn = document.getElementById('ed-navn').value.trim();
+  if (!navn) { visTost('Skriv inn navn'); return; }
+  if (!edData.niva) { visTost('Velg treningsnivå'); return; }
+
+  const gammel = hentProfilFraLS() || {};
+  const nyVekt = parseFloat(document.getElementById('ed-vekt').value);
+
+  const profil = {
+    ...gammel,
+    navn,
+    alder: parseInt(document.getElementById('ed-alder').value) || gammel.alder,
+    vekt: nyVekt || gammel.vekt,
+    hoyde: parseInt(document.getElementById('ed-hoyde').value) || gammel.hoyde,
+    kjonn: edData.kjonn,
+    mal: edData.mal,
+    utstyr: edData.utstyr,
+    treningspreferanser: edData.treningspreferanser,
+    niva: edData.niva,
+    tidspunkt: edData.tidspunkt,
+    dager: parseInt(document.getElementById('ed-dager').value) || 4,
+    tid: parseInt(document.getElementById('ed-tid').value) || 60,
+    skader: document.getElementById('ed-skader').value.trim(),
+    ekstra_info: document.getElementById('ed-ekstra').value.trim(),
+    onboarded: true,
+  };
+
+  lsSave('ptc_profil', profil);
+  if (nyVekt && nyVekt !== gammel.vekt) {
+    lsSave('ptc_vekt', nyVekt);
+    loggVektDag(nyVekt);
+  }
+  lagreProfilFirestore(profil);
+  _brukProfilPåBILDE(profil);
+
+  // Slett cachet AI-plan så ny genereres med oppdatert profil
+  lsSave('ptc_plan_' + iDag(), null);
+
+  lukkProfilEditor();
+  oppdaterProfilVisning();
+  visTost('Profil oppdatert ✓');
 }
 function lagreVekt() {
   const ny = parseFloat(document.getElementById('vekt-input').value);
